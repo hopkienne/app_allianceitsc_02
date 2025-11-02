@@ -62,7 +62,7 @@ public class InMemoryGroupStore : IGroupMembershipStore
         {
             if (_userToGroups.TryGetValue(userCode, out var groups))
                 return Task.FromResult((IReadOnlyCollection<string>)groups.ToList());
-            return Task.FromResult((IReadOnlyCollection<string>)Array.Empty<string>());
+            return Task.FromResult((IReadOnlyCollection<string>)[]);
         }
     }
 

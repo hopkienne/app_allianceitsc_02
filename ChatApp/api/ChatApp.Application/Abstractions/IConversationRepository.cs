@@ -14,6 +14,6 @@ public interface IConversationRepository
     Task<Conversations?> GetConversationByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<List<ViewMyConversations>> GetConversationByUserAsync(Guid userId, CancellationToken cancellationToken);
     Task<Guid> CheckOrCreateConversationExistsAsync(Guid userOneId, Guid userTwoId, CancellationToken cancellationToken);
-    Task<bool> CheckMemberInConversationAsync(Guid conversationId, Guid userId, CancellationToken cancellationToken);
+    Task<(bool isMember, List<Guid> ids)> CheckMemberInConversationAsync(Guid conversationId, Guid userId, CancellationToken cancellationToken);
     Task<bool> IsMemberInConversationAsync(Guid conversationId, Guid userId, CancellationToken cancellationToken);
 }

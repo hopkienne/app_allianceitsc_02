@@ -35,6 +35,8 @@ interface ChatActions {
   subscribeToMessages: () => () => void;
   receiveMessage: (messageData: any) => void;
   receiveGroupMessage: (bumpData: any) => void;
+  openConversationFromNotification: (conversationId: ID) => Promise<void>;
+  markAsReadFromNotification: (conversationId: ID) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
@@ -142,38 +144,41 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
   },
 
   selectConversation: async (conversationId: ID) => {
-    const { selectedConvId } = get();
-    
-    // Leave previous conversation if any
-    if (selectedConvId && signalRService.isConnected()) {
-      try {
-        await signalRService.leaveConversation(selectedConvId);
-      } catch (error) {
-        console.error('Failed to leave conversation:', error);
-      }
+  const { selectedConvId, messagesByConv } = get();
+  if (selectedConvId === conversationId) return; // tránh churn
+
+  const prevId = selectedConvId ?? null;
+
+  // Cập nhật state sớm (tuỳ UI), hoặc đặt cờ isSwitching
+  set({ selectedConvId: conversationId });
+
+  // Join trước, rồi leave sau để tránh "gap"
+  if (signalRService.isConnected()) {
+    try {
+      await signalRService.joinConversation(conversationId);
+      console.log('Joined conversation:', conversationId);
+    } catch (e) {
+      console.error('Failed to join conversation:', e);
+      Toast.error('Failed to join conversation');
+      // (tuỳ chọn) rollback UI: set({ selectedConvId: prevId });
+      // return; // nếu muốn dừng hẳn
     }
-    
-    set({ selectedConvId: conversationId });
-    
-    // Join the new conversation room via SignalR
-    if (signalRService.isConnected()) {
-      try {
-        await signalRService.joinConversation(conversationId);
-      } catch (error) {
-        console.error('Failed to join conversation:', error);
-        Toast.error('Failed to join conversation');
-      }
+
+    if (prevId && prevId !== conversationId) {
+      // leave phòng cũ sau khi đã join phòng mới
+      signalRService.leaveConversation(prevId).catch(err =>
+        console.warn('Leave previous conversation failed (ignored):', err)
+      );
     }
-    
-    // Load messages if not already loaded
-    const { messagesByConv, markAsRead } = get();
-    if (!messagesByConv[conversationId]) {
-      await get().loadMessages(conversationId);
-    }
-    
-    // Mark as read
-    await markAsRead(conversationId);
-  },
+  }
+
+  // Load messages (refetch/refresh tuỳ tình huống)
+  if (!messagesByConv[conversationId]) {
+    await get().loadMessages(conversationId);
+  }
+  
+  await get().markAsRead(conversationId);
+},
 
   sendMessage: async (text: string, senderId: ID) => {
     const { selectedConvId, conversations } = get();
@@ -378,8 +383,9 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
     const conversationId = messageData.conversationId || messageData.ConversationId;
     const senderId = messageData.senderId || messageData.SenderId;
     const content = messageData.content || messageData.Content;
-    const messageId = messageData.messageId;
+    const messageId = messageData.messageId || messageData.MessageId || messageData.id || messageData.Id;
     const createdAt = messageData.createdAt || messageData.CreatedAt || new Date().toISOString();
+    const senderName = messageData.senderName || messageData.SenderName;
 
     // Find the conversation
     const conversation = conversations.find(conv => conv.id === conversationId);
@@ -396,7 +402,8 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
       senderId,
       text: content,
       createdAt,
-      status: 'delivered'
+      status: 'delivered',
+      senderName
     };
 
     // Add message to store
@@ -410,36 +417,55 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
       }
     }));
 
-    // Update conversation's last message
-    set((state) => ({
-      conversations: state.conversations.map(conv =>
+    // Determine if we should increment unread count
+    const isViewingConversation = selectedConvId === conversationId;
+    
+    // Update conversation's last message and bump to top
+    set((state) => {
+      const updatedConversations = state.conversations.map(conv =>
         conv.id === conversationId
           ? { 
               ...conv, 
               lastMessage: newMessage, 
               // Only increment unread if not currently viewing this conversation
-              unreadCount: selectedConvId === conversationId ? 0 : (conv.unreadCount || 0) + 1 
+              unreadCount: isViewingConversation ? 0 : (conv.unreadCount || 0) + 1 
             }
           : conv
-      )
-    }));
+      );
 
-    // Show notification only if not viewing this conversation
-    if (selectedConvId !== conversationId) {
-      Toast.info('New message received');
-    }
+      // Sort conversations by last message time (most recent first)
+      updatedConversations.sort((a, b) => {
+        const timeA = a.lastMessage?.createdAt || '';
+        const timeB = b.lastMessage?.createdAt || '';
+        return timeB.localeCompare(timeA);
+      });
+
+      return { conversations: updatedConversations };
+    });
+
+    // Don't show notification if viewing this conversation
+    // Notification will be shown via ConversationBump event instead
   },
 
   /**
    * Handle ConversationBump event from server
    * This updates the conversation list when a message is sent
+   * Implements the "bump + toast" pattern like Slack/Teams
    */
   receiveGroupMessage: (bumpData: any) => {
+    const { selectedConvId, conversations } = get();
+    
     const conversationId = bumpData.conversationId || bumpData.ConversationId;
     const lastMessagePreview = bumpData.lastMessagePreview || bumpData.LastMessagePreview;
     const at = bumpData.at || bumpData.At || new Date().toISOString();
+    const displayName = bumpData.displayName || bumpData.DisplayName || 'Someone';
+    const senderId = bumpData.senderId || bumpData.SenderId;
 
-    // Update conversation to move it to top of list
+    console.log('📬 ConversationBump received:', { conversationId, displayName, lastMessagePreview });
+
+    const isViewingConversation = selectedConvId === conversationId;
+
+    // Update conversation to bump to top and update preview
     set((state) => {
       const conversations = [...state.conversations];
       const index = conversations.findIndex(conv => conv.id === conversationId);
@@ -447,22 +473,44 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
       if (index > -1 && index < conversations.length) {
         const [conversation] = conversations.splice(index, 1);
         if (conversation) {
-          conversations.unshift({
+          // Update the conversation with new message info and bump to top
+          const updatedConversation = {
             ...conversation,
-            lastMessage: conversation.lastMessage || {
-              id: 'bump',
+            lastMessage: {
+              id: 'bump-' + Date.now(), // Temporary ID for bump message
               conversationId,
-              senderId: '',
+              senderId: senderId || '',
               text: lastMessagePreview,
               createdAt: at,
-              status: 'delivered'
-            }
-          });
+              status: 'delivered' as const,
+              senderName: displayName
+            },
+            // Increment unread count only if not currently viewing this conversation
+            unreadCount: isViewingConversation ? 0 : (conversation.unreadCount || 0) + 1
+          };
+          
+          conversations.unshift(updatedConversation);
         }
       }
       
       return { conversations };
     });
+
+    // Show toast notification only if user is NOT viewing this conversation
+    // This implements the "bump + toast" pattern
+    if (!isViewingConversation) {
+      // Store the bump data for toast rendering
+      // We'll trigger the toast from the component layer via a custom event
+      const bumpEvent = new CustomEvent('chat:conversationBump', {
+        detail: {
+          conversationId,
+          senderName: displayName,
+          messagePreview: lastMessagePreview,
+          senderId
+        }
+      });
+      window.dispatchEvent(bumpEvent);
+    }
   },
 
   /**
@@ -571,5 +619,57 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
       signalRService.off('ReadReceiptUpdated', handleReadReceiptUpdated);
       console.log('Unsubscribed from message events');
     };
+  },
+
+  /**
+   * Open a conversation from a notification toast
+   * This handles: joining the conversation, loading messages, and navigating to it
+   * Note: Navigation is handled by the caller (typically in AppShell or route component)
+   */
+  openConversationFromNotification: async (conversationId: ID) => {
+    try {
+      // Select the conversation (this will join it via SignalR and load messages)
+      await get().selectConversation(conversationId);
+      
+      // Mark as read after opening
+      await get().markAsRead(conversationId);
+      
+      console.log('Opened conversation from notification:', conversationId);
+    } catch (error) {
+      console.error('Failed to open conversation from notification:', error);
+      Toast.error('Failed to open conversation');
+    }
+  },
+
+  /**
+   * Mark a conversation as read from a notification without opening it
+   * This updates the unread count and calls the SignalR markRead method
+   */
+  markAsReadFromNotification: async (conversationId: ID) => {
+    try {
+      const { messagesByConv } = get();
+      
+      // Update local unread count immediately for better UX
+      set((state) => ({
+        conversations: state.conversations.map(conv =>
+          conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
+        )
+      }));
+
+      // If we have messages for this conversation, mark the last one as read
+      const messages = messagesByConv[conversationId];
+      if (messages && messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage && signalRService.isConnected()) {
+          await signalRService.markRead(conversationId, lastMessage.id);
+        }
+      }
+      
+      console.log('Marked conversation as read from notification:', conversationId);
+      Toast.success('Marked as read');
+    } catch (error) {
+      console.error('Failed to mark conversation as read:', error);
+      Toast.error('Failed to mark as read');
+    }
   }
 }));

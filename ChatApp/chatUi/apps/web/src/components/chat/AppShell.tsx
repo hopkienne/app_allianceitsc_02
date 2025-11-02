@@ -80,6 +80,57 @@ export function AppShell() {
     }
   }, [currentUser, loadConversations, loadMembers, subscribeToPresence]);
 
+  // Listen for conversation bump events and show toast notifications
+  useEffect(() => {
+    const handleConversationBump = async (event: CustomEvent) => {
+      const { conversationId, senderName, messagePreview, senderId } = event.detail;
+      
+      // Dynamically import MessageToast to avoid circular dependencies
+      const { MessageToast } = await import('./MessageToast');
+      
+      // Find sender info - Members type doesn't have avatarUrl, so we'll use undefined
+      // Avatar will be generated from displayName initial
+      const sender = members.find(m => m.id === senderId);
+      
+      // Show custom toast with actions
+      Toast.messageNotification((t) => (
+        <MessageToast
+          senderName={senderName}
+          senderAvatar={undefined} // Members type doesn't include avatar, will use fallback
+          messagePreview={messagePreview}
+          conversationId={conversationId}
+          onOpen={async (convId) => {
+            // Dismiss the toast
+            Toast.dismiss(t.id);
+            // Navigate to conversation
+            navigate({ to: `/chat/${convId}` as any });
+            // Open and join the conversation
+            const { openConversationFromNotification } = useChatStore.getState();
+            await openConversationFromNotification(convId);
+            // Hide sidebar on mobile
+            setShowConversations(false);
+          }}
+          onMarkRead={async (convId) => {
+            // Mark as read without opening
+            const { markAsReadFromNotification } = useChatStore.getState();
+            await markAsReadFromNotification(convId);
+          }}
+          onDismiss={() => {
+            Toast.dismiss(t.id);
+          }}
+        />
+      ));
+    };
+
+    // @ts-ignore - CustomEvent type
+    window.addEventListener('chat:conversationBump', handleConversationBump);
+
+    return () => {
+      // @ts-ignore - CustomEvent type
+      window.removeEventListener('chat:conversationBump', handleConversationBump);
+    };
+  }, [navigate, members]);
+
   // Select conversation from URL params
   useEffect(() => {
     const conversationId = (params as any).conversationId;

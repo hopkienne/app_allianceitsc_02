@@ -26,7 +26,15 @@ export function ConversationItem({
   const [isHovered, setIsHovered] = useState(false);
   const displayName = conversation.title || otherUser?.displayName || 'Unknown';
   const avatar = conversation.avatarUrl || otherUser?.avatarUrl;
-  const lastMessageText = conversation.lastMessage?.text || 'No messages yet';
+  
+  // Format last message with sender name for group chats or when available
+  const lastMessage = conversation.lastMessage;
+  const lastMessageText = lastMessage 
+    ? (lastMessage.senderName 
+        ? `${lastMessage.senderName}: ${lastMessage.text}` 
+        : lastMessage.text)
+    : 'No messages yet';
+  
   const timestamp = conversation.lastMessage?.createdAt;
 
   return (

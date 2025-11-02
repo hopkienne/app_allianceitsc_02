@@ -96,17 +96,19 @@ public class ConversationRepository(ChatDbContext context) : IConversationReposi
         await tx.CommitAsync(cancellationToken);
         return existingConversation;
     }
-    
-    public async Task<bool> CheckMemberInConversationAsync(Guid conversationId, Guid userId,
+
+    public async Task<(bool isMember, List<Guid> ids)> CheckMemberInConversationAsync(Guid conversationId, Guid userId,
         CancellationToken cancellationToken)
     {
-        var isMember =
-            await context.ConversationMembers.AnyAsync(x => x.ConversationId == conversationId && x.UserId == userId,
-                cancellationToken);
-        return isMember;
+        var ids =
+            await context.ConversationMembers.Where(x => x.ConversationId == conversationId)
+                .Select(m => m.UserId).ToListAsync(cancellationToken);
+        var isMember = ids.Exists(id => id == userId);
+        return (isMember, ids);
     }
 
-    public async Task<bool> IsMemberInConversationAsync(Guid conversationId, Guid userId, CancellationToken cancellationToken)
+    public async Task<bool> IsMemberInConversationAsync(Guid conversationId, Guid userId,
+        CancellationToken cancellationToken)
     {
         var isMember = await context.ConversationMembers
             .AnyAsync(cm => cm.ConversationId == conversationId && cm.UserId == userId && cm.IsActive,

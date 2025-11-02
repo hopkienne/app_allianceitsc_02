@@ -60,9 +60,9 @@ public class ChatHub(
     // Client gọi khi mở/đóng 1 room
     public async Task JoinConversation(Guid conversationId)
     {
-        var isMember =
+        var (isMember, _) =
             await conversationRepository.CheckMemberInConversationAsync(conversationId,
-                Guid.Parse(Context.UserIdentifier!), default);
+                Guid.Parse(Context.UserIdentifier!), CancellationToken.None);
         if (!isMember) throw new HubException("Not a member of this conversation.");
 
         await Groups.AddToGroupAsync(Context.ConnectionId, conversationId.ToString());
@@ -78,14 +78,15 @@ public class ChatHub(
         await Clients.Caller.SendAsync("LeftConversation", conversationId);
     }
 
-    // --- GỬI TIN NHẮN: chỉ theo ConversationId ---
     public async Task SendMessage(Guid conversationId, string content)
     {
         if (string.IsNullOrWhiteSpace(content))
             throw new HubException("Message content is required.");
 
         // 1) Quyền: bắt buộc là member active
-        var isMember = await groupStore.IsUserMemberAsync(conversationId.ToString(), Context.UserIdentifier!);
+        var (isMember, memberIds) =
+            await conversationRepository.CheckMemberInConversationAsync(conversationId,
+                Guid.Parse(Context.UserIdentifier!), CancellationToken.None);
         if (!isMember) throw new HubException("Not a member of this conversation.");
 
         // 2) Lưu DB qua MediatR
@@ -100,8 +101,7 @@ public class ChatHub(
 
         await Clients.Group(conversationId.ToString()).SendAsync("MessageCreated", result);
 
-        // 4) Bump sidebar cho tất cả thành viên (kể cả người không mở phòng)
-        var memberIds = await groupStore.ListMembersAsync(conversationId.ToString());
+        // 4) Bump sidebar cho tất cả thành viên (kể cả người không mở phòng
         foreach (var member in memberIds)
         {
             await Clients.Group($"User::{member}")
@@ -109,6 +109,8 @@ public class ChatHub(
                 {
                     ConversationId = conversationId,
                     LastMessagePreview = content,
+                    DisplayName = currentUserService.GetCurrentDisplayName(),
+                    SenderId = Guid.Parse(Context.UserIdentifier!),
                     // Có thể kèm UnreadCount mới nếu bạn tính ở server
                     At = DateTimeOffset.UtcNow
                 });
@@ -123,7 +125,12 @@ public class ChatHub(
             throw new HubException("Not a member.");
 
         await Clients.OthersInGroup(conversationId.ToString())
-            .SendAsync("TypingStarted", new { ConversationId = conversationId, UserId = userId, DisplayName = currentUserService.GetCurrentDisplayName() });
+            .SendAsync("TypingStarted",
+                new
+                {
+                    ConversationId = conversationId, UserId = userId,
+                    DisplayName = currentUserService.GetCurrentDisplayName()
+                });
     }
 
     public async Task TypingStopped(Guid conversationId)

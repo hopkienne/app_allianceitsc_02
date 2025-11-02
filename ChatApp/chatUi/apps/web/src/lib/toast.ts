@@ -166,6 +166,20 @@ export const Toast = {
   remove: (toastId?: string) => {
     toast.remove(toastId);
   },
+
+  /**
+   * Show a custom message notification toast with JSX content
+   * Used for rich notifications like new message alerts with action buttons
+   * @param content - Function that receives toast helpers and returns JSX
+   * @param options - Optional toast configuration
+   */
+  messageNotification: (content: (t: any) => React.ReactElement, options?: ToastOptions) => {
+    return toast.custom(content, {
+      duration: 6000, // Show message notifications longer
+      position: 'top-right',
+      ...options,
+    });
+  },
 };
 
 /**
