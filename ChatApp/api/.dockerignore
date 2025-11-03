@@ -1,0 +1,53 @@
+# Ignore build outputs
+**/bin/
+**/obj/
+**/out/
+
+# Ignore Visual Studio / Rider files
+**/.vs/
+**/.vscode/
+**/.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# Ignore NuGet packages
+*.nupkg
+*.snupkg
+**/packages/
+
+# Ignore test results
+**/TestResults/
+**/*.trx
+
+# Ignore logs
+**/logs/
+**/*.log
+
+# Ignore temporary files
+**/tmp/
+**/temp/
+**/*.tmp
+
+# Ignore git files
+.git/
+.gitignore
+.gitattributes
+
+# Ignore documentation
+*.md
+!readme.md
+
+# Ignore Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore migration scripts (optional - uncomment if you don't want migrations in image)
+# **/Migrations/
