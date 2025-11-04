@@ -21,8 +21,8 @@ public class CreateClientCommandHandler(
         
         var client = new OAuthClients
         {
-            Id = GuidExtensions.CreateVersion7(),
-            ClientId = GuidExtensions.CreateVersion7().ToString(),
+            Id = Guid.CreateVersion7(),
+            ClientId = Guid.CreateVersion7().ToString(),
             ClientName = request.Name,
             Scopes = request.Scopes,
             IsActive = true,
@@ -30,7 +30,7 @@ public class CreateClientCommandHandler(
         };
         var clientSecret = new OAuthClientSecrets()
         {
-            Id = GuidExtensions.CreateVersion7(),
+            Id = Guid.CreateVersion7(),
             ClientId = client.Id,
             SecretHash = Hashing.Argon2IdHasherSecretKey(request.Secret),
             CreatedAt = DateTimeOffset.UtcNow,

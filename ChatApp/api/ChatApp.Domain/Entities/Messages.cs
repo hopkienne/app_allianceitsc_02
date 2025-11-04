@@ -20,7 +20,7 @@ public class Messages
     public Messages()
     {
         CreatedAt = DateTimeOffset.UtcNow;
-        Id = GuidExtensions.CreateVersion7();
+        Id = Guid.CreateVersion7();
     }
 
     public static Messages Create(Guid conversationId, Guid senderId, string content)

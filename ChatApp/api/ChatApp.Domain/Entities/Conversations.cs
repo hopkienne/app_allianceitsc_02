@@ -18,7 +18,7 @@ public class Conversations
     
     public Conversations()
     {
-        Id = GuidExtensions.CreateVersion7();
+        Id = Guid.CreateVersion7();
         CreatedAt = DateTimeOffset.UtcNow;
     }
 }
