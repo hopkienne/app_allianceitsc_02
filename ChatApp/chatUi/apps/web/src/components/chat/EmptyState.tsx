@@ -1,14 +1,12 @@
-import { MessageSquare } from 'lucide-react';
+import { ChatBubbleLeftRightIcon } from './Icons';
 
 export function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-4">
-      <div className="bg-muted rounded-full p-6 mb-4">
-        <MessageSquare className="w-16 h-16 text-muted-foreground" />
-      </div>
-      <h3 className="text-xl font-semibold mb-2">Select a conversation</h3>
-      <p className="text-muted-foreground max-w-sm">
-        Choose a conversation from the list or start a new chat with a team member
+    <div className="hidden md:flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-900 text-center p-4">
+      <ChatBubbleLeftRightIcon className="w-24 h-24 text-slate-300 dark:text-slate-600" />
+      <h2 className="mt-4 text-xl font-semibold text-slate-600 dark:text-slate-300">Select a conversation</h2>
+      <p className="mt-1 text-slate-500 dark:text-slate-400 max-w-sm">
+        Choose from the list on the left or start a new chat with a member.
       </p>
     </div>
   );

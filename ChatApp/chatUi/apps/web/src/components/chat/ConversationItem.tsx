@@ -1,19 +1,14 @@
 import { useState } from 'react';
-import { Conversation, User } from '../../types';
-import { Avatar, AvatarImage, AvatarFallback } from '@workspace/ui/components/Avatar';
-import { Badge } from '@workspace/ui/components/Badge';
-import { Button } from '@workspace/ui/components/Button';
-import { MenuTrigger, Menu, MenuPopover, MenuItem } from '@workspace/ui/components/Menu';
+import { Conversation, User, Members } from '../../types';
 import { cn } from '@workspace/ui/lib/utils';
-import { formatDistanceToNow } from '../../lib/utils';
-import { MoreVertical, Trash2 } from 'lucide-react';
 
 interface ConversationItemProps {
   conversation: Conversation;
   isSelected: boolean;
   onClick: () => void;
   onDelete?: (conversationId: string) => void | Promise<void>;
-  otherUser?: User;
+  otherUser?: User | Members;
+  currentUser: User;
 }
 
 export function ConversationItem({ 
@@ -21,100 +16,98 @@ export function ConversationItem({
   isSelected, 
   onClick,
   onDelete,
-  otherUser 
+  otherUser,
+  currentUser
 }: ConversationItemProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const displayName = conversation.title || otherUser?.displayName || 'Unknown';
-  const avatar = conversation.avatarUrl || otherUser?.avatarUrl;
+  const [showMenu, setShowMenu] = useState(false);
   
-  // Format last message with sender name for group chats or when available
+  const displayName = conversation.title || otherUser?.displayName || 'Unknown';
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
+  
+  // Format last message
   const lastMessage = conversation.lastMessage;
   const lastMessageText = lastMessage 
-    ? (lastMessage.senderName 
-        ? `${lastMessage.senderName}: ${lastMessage.text}` 
-        : lastMessage.text)
+    ? `${lastMessage.senderId === currentUser.id ? 'You: ' : ''}${lastMessage.text}` 
     : 'No messages yet';
-  
-  const timestamp = conversation.lastMessage?.createdAt;
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    if (onDelete) {
+      onDelete(conversation.id);
+    }
+  };
 
   return (
-    <div
-      className={cn(
-        'w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors relative group',
-        isSelected && 'bg-muted'
-      )}
+    <li
+      onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        setShowMenu(false);
+      }}
+      className={cn(
+        'flex items-center p-3 cursor-pointer rounded-lg transition-colors relative group',
+        isSelected 
+          ? 'bg-blue-500 text-white' 
+          : 'hover:bg-slate-200 dark:hover:bg-slate-700'
+      )}
+      aria-current={isSelected}
     >
-      <button
-        onClick={onClick}
-        className="flex items-center gap-3 flex-1 min-w-0 text-left"
-        aria-label={`Conversation with ${displayName}`}
-      >
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={avatar} alt={displayName} />
-          <AvatarFallback>
-            {displayName.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-semibold truncate">{displayName}</h3>
-            {timestamp && (
-              <span className="text-xs text-muted-foreground ml-2">
-                {formatDistanceToNow(timestamp)}
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground truncate">
-            {lastMessageText}
-          </p>
-        </div>
-
-        {conversation.unreadCount ? (
-          <Badge variant="default" className="ml-2 shrink-0">
-            {conversation.unreadCount}
-          </Badge>
-        ) : null}
-      </button>
-
-      {/* Menu button - visible on hover */}
-      <div 
-        className={cn(
-          'absolute right-2 top-1/2 -translate-y-1/2 transition-opacity',
-          isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <MenuTrigger>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-          >
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-          <MenuPopover placement="bottom end">
-            <Menu 
-              onAction={(key) => {
-                if (key === 'delete' && onDelete) {
-                  onDelete(conversation.id);
-                }
-              }}
-            >
-              <MenuItem
-                id="delete"
-                textValue="Xoá"
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>Xoá cuộc trò chuyện</span>
-              </MenuItem>
-            </Menu>
-          </MenuPopover>
-        </MenuTrigger>
+      <img src={avatarUrl} alt={displayName} className="w-12 h-12 rounded-full mr-4" />
+      <div className="flex-1 overflow-hidden">
+        <p className={cn(
+          'font-semibold truncate',
+          isSelected ? 'text-white' : 'text-slate-800 dark:text-slate-100'
+        )}>
+          {displayName}
+        </p>
+        <p className={cn(
+          'text-sm truncate',
+          isSelected ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'
+        )}>
+          {lastMessageText}
+        </p>
       </div>
-    </div>
+      
+      {/* More Options Button - visible on hover */}
+      {isHovered && onDelete && (
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+            className={cn(
+              'p-2 rounded-full transition-colors',
+              isSelected 
+                ? 'hover:bg-blue-600' 
+                : 'hover:bg-slate-300 dark:hover:bg-slate-600'
+            )}
+            aria-label="More options"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+            </svg>
+          </button>
+          
+          {/* Dropdown Menu */}
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-700 rounded-lg shadow-lg border border-slate-200 dark:border-slate-600 z-50">
+              <button
+                onClick={handleDelete}
+                className="w-full flex items-center gap-2 px-4 py-2 text-left text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span className="font-medium">Delete</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </li>
   );
 }

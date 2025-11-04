@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Menu, X, Users } from 'lucide-react';
 import { useNavigate, useParams, useLocation } from '@tanstack/react-router';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useChatStore } from '../../stores/useChatStore';
@@ -12,9 +11,9 @@ import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
 import { MembersPanel } from './MembersPanel';
 import { TypingIndicator } from './TypingIndicator';
-import { Button } from '@workspace/ui/components/Button';
 import { cn } from '@workspace/ui/lib/utils';
 import Toast from '../../lib/toast';
+import { confirm } from '@workspace/ui/components/ConfirmDialog';
 
 export function AppShell() {
   const navigate = useNavigate();
@@ -140,6 +139,9 @@ export function AppShell() {
       if (conversation) {
         selectConversation(conversationId);
       }
+    } else if (!conversationId && selectedConvId) {
+      // Clear selection when navigating back to /chat without a conversationId
+      useChatStore.setState({ selectedConvId: null });
     }
   }, [params, conversations, selectedConvId, selectConversation]);
 
@@ -194,41 +196,13 @@ export function AppShell() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Mobile Header */}
-      <div className="lg:hidden flex items-center justify-between p-4 border-b bg-background">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => {
-            setShowConversations(!showConversations);
-            setShowMembers(false);
-          }}
-        >
-          <Menu className="w-5 h-5" />
-        </Button>
-        <h1 className="font-semibold">ChatApp</h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => {
-            setShowMembers(!showMembers);
-            setShowConversations(false);
-          }}
-        >
-          <Users className="w-5 h-5" />
-        </Button>
-      </div>
-
-      {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Left - Conversations */}
-        <div
-          className={cn(
-            'w-full lg:w-80 xl:w-96 shrink-0 border-r bg-background',
-            !showConversations && selectedConvId && 'hidden lg:block'
-          )}
-        >
+    <div className="h-screen w-screen text-slate-800 dark:text-slate-200 antialiased font-sans">
+      <main className="flex h-full">
+        {/* Sidebar - Conversations */}
+        <div className={cn(
+          'w-full md:w-[320px] lg:w-[360px] flex-shrink-0 md:flex flex-col',
+          selectedConvId ? 'hidden' : 'flex'
+        )}>
           <ConversationList
             conversations={conversations}
             selectedConvId={selectedConvId}
@@ -239,31 +213,53 @@ export function AppShell() {
               setShowMembers(false);
             }}
             onDeleteConversation={async (id) => {
-              await deleteConversation(id);
-              if (selectedConvId === id) {
-                navigate({ to: '/chat' as any });
-              }
+              const conversation = conversations.find(c => c.id === id);
+              const displayName = conversation?.title || 'this conversation';
+              
+              // Show custom confirmation dialog
+              confirm({
+                variant: 'destructive',
+                title: 'Delete Conversation',
+                description: `Are you sure you want to delete ${displayName}? This action cannot be undone.`,
+                action: {
+                  label: 'Delete',
+                  onClick: async () => {
+                    await deleteConversation(id);
+                    if (selectedConvId === id) {
+                      navigate({ to: '/chat' as any });
+                    }
+                    Toast.success('Conversation deleted successfully');
+                  },
+                },
+                cancel: {
+                  label: 'Cancel',
+                  onClick: () => {
+                    // Just close the dialog
+                  }
+                }
+              });
             }}
             currentUser={currentUser}
             isLoading={isLoading}
+            members={members}
+            onUserSelect={handleStartChat}
           />
         </div>
-
-        {/* Center - Chat */}
-        <div
-          className={cn(
-            'flex-1 flex flex-col min-w-0',
-            showConversations && selectedConvId && 'hidden lg:flex',
-            !selectedConvId && 'hidden lg:flex'
-          )}
-        >
+        
+        {/* Chat Window */}
+        <div className={cn(
+          'w-full flex-1 md:flex flex-col min-w-0',
+          selectedConvId ? 'flex' : 'hidden'
+        )}>
           {selectedConvId && selectedConversation ? (
             <>
               <ChatHeader
                 user={otherUser}
                 title={selectedConversation.title}
                 avatarUrl={selectedConversation.avatarUrl}
-                onMembersClick={() => setShowMembers(!showMembers)}
+                onBack={() => {
+                  navigate({ to: '/chat' as any });
+                }}
               />
               <MessageList
                 messages={selectedMessages}
@@ -290,46 +286,21 @@ export function AppShell() {
             <EmptyState />
           )}
         </div>
-        <>
-          {/* Backdrop overlay for mobile only */}
-          {showMembers && (
-            <div 
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-              onClick={() => setShowMembers(false)}
-            />
-          )}
-          
-          {/* Members Panel */}
-          <div
-            className={cn(
-              'fixed right-0 top-0 bottom-0 w-80 bg-background z-50 shadow-2xl border-l',
-              'lg:relative lg:shadow-none lg:w-80 xl:w-96 lg:z-0',
-              'transition-transform duration-300 ease-in-out lg:transition-none',
-              // On mobile: slide in/out based on showMembers
-              // On large screens: always visible
-              showMembers ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
-            )}
-          >
-            {/* Close button for mobile only */}
-            <div className="lg:hidden flex items-center justify-between p-4 border-b">
-              <h2 className="font-semibold">All Members</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowMembers(false)}
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            
+        
+        {/* Members Panel - Desktop Only */}
+        <div className="hidden lg:flex flex-col w-72 flex-shrink-0">
+          <aside className="w-full bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex-col h-full flex">
+            <header className="p-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="font-bold text-slate-800 dark:text-slate-100">Members</h2>
+            </header>
             <MembersPanel
               members={members}
               onStartChat={handleStartChat}
               isLoading={membersLoading}
             />
-          </div>
-        </>
-      </div>
+          </aside>
+        </div>
+      </main>
     </div>
   );
 }

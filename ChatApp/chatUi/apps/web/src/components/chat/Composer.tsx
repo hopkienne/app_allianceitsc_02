@@ -1,7 +1,5 @@
 import { useState, FormEvent, KeyboardEvent, useRef, useEffect } from 'react';
-import { Send, Smile } from 'lucide-react';
-import { Button } from '@workspace/ui/components/Button';
-import { Input } from '@workspace/ui/components/Textfield';
+import { SendIcon } from './Icons';
 import { signalRService } from '../../lib/signalr/hub';
 
 interface ComposerProps {
@@ -89,7 +87,7 @@ export function Composer({ conversationId, onSend, isSending = false, onFocus }:
     handleTypingStopped();
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setMessage(newValue);
 
@@ -112,7 +110,7 @@ export function Composer({ conversationId, onSend, isSending = false, onFocus }:
     }
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
@@ -120,41 +118,27 @@ export function Composer({ conversationId, onSend, isSending = false, onFocus }:
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border-t p-4 bg-background">
-      <div className="flex items-end gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="shrink-0"
-          aria-label="Add emoji"
-        >
-          <Smile className="w-5 h-5" />
-        </Button>
-
-        <div className="flex-1">
-          <Input
-            value={message}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onFocus={handleInputFocus}
-            onBlur={handleInputBlur}
-            placeholder="Message"
-            className="w-full"
-            aria-label="Type a message"
-          />
-        </div>
-
-        <Button
+    <div className="bg-white dark:bg-slate-800 p-4 border-t border-slate-200 dark:border-slate-700">
+      <form onSubmit={handleSubmit} className="flex items-center gap-4">
+        <textarea
+          value={message}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          placeholder="Type a message..."
+          className="flex-1 bg-slate-100 dark:bg-slate-700 rounded-full py-2 px-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-slate-800 dark:text-slate-200"
+          rows={1}
+          disabled={isSending}
+        />
+        <button
           type="submit"
-          size="icon"
-          isDisabled={!message.trim() || isSending}
-          className="shrink-0"
-          aria-label="Send message"
+          disabled={isSending || !message.trim()}
+          className="bg-blue-600 text-white rounded-full p-2 disabled:bg-slate-400 disabled:dark:bg-slate-600 disabled:cursor-not-allowed transition-colors"
         >
-          <Send className="w-5 h-5" />
-        </Button>
-      </div>
-    </form>
+          <SendIcon className="w-5 h-5" />
+        </button>
+      </form>
+    </div>
   );
 }

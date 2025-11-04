@@ -1,12 +1,29 @@
 <!doctype html>
 <html lang="en" translate="no">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Vite App</title>
-    </head>
-    <body class="font-sans antialiased">
-        <div id="app"></div>
-        <script type="module" src="/src/main.tsx"></script>
-    </body>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite App</title>
+    <script>
+        // Apply theme immediately to prevent flash
+        (function () {
+            const theme = localStorage.getItem('theme') || 'system';
+            const root = document.documentElement;
+
+            if (theme === 'system') {
+                const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                root.classList.add(systemTheme);
+            } else {
+                root.classList.add(theme);
+            }
+        })();
+    </script>
+</head>
+
+<body class="font-sans antialiased">
+    <div id="app"></div>
+    <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

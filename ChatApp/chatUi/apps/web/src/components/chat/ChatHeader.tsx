@@ -1,67 +1,33 @@
-import { Search, MoreVertical, Users } from 'lucide-react';
 import { Members } from '../../types';
-import { Avatar, AvatarImage,AvatarFallback } from '@workspace/ui/components/Avatar';
-import { Button } from '@workspace/ui/components/Button';
-import { PresenceDot } from './PresenceDot';
-import { formatDistanceToNow } from '../../lib/utils';
+import { ArrowLeftIcon, UsersIcon } from './Icons';
+import { cn } from '@workspace/ui/lib/utils';
 
 interface ChatHeaderProps {
   user?: Members;
   title?: string;
   avatarUrl?: string;
-  onMembersClick?: () => void;
+  onBack?: () => void;
 }
 
-export function ChatHeader({ user, title, avatarUrl, onMembersClick }: ChatHeaderProps) {
+export function ChatHeader({ user, title, avatarUrl, onBack }: ChatHeaderProps) {
   const displayName = title || user?.displayName || 'Chat';
-  const avatar = avatarUrl;
-  
-  let presenceText = '';
-  if (user) {
-    if (user.isOnline) {
-      presenceText = 'online';
-    } else {
-      presenceText = 'offline';
-    }
-  }
+  const avatar = avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
+  const subtitle = user ? 'Direct Message' : 'Chat';
 
   return (
-    <div className="flex items-center gap-3 p-4 border-b bg-background">
-      <Avatar className="h-10 w-10">
-        <AvatarFallback>
-          {displayName.charAt(0).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-
+    <header className="flex items-center p-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 z-10">
+      {onBack && (
+        <button onClick={onBack} className="md:hidden mr-3 text-slate-600 dark:text-slate-300">
+          <ArrowLeftIcon className="w-6 h-6" />
+        </button>
+      )}
+      <img src={avatar} alt={displayName} className="w-10 h-10 rounded-full mr-3" />
       <div className="flex-1 min-w-0">
-        <h2 className="font-semibold truncate">{displayName}</h2>
-        {user && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <PresenceDot status={user.isOnline ? 'online' : 'offline'} />
-            <span>{presenceText}</span>
-          </div>
-        )}
+        <h2 className="font-bold text-slate-800 dark:text-slate-100 truncate">{displayName}</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
+          {subtitle}
+        </p>
       </div>
-
-      <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" aria-label="Search in chat">
-          <Search className="w-5 h-5" />
-        </Button>
-        {onMembersClick && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            aria-label="Show members"
-            onClick={onMembersClick}
-            className="lg:hidden"
-          >
-            <Users className="w-5 h-5" />
-          </Button>
-        )}
-        <Button variant="ghost" size="icon" aria-label="More options">
-          <MoreVertical className="w-5 h-5" />
-        </Button>
-      </div>
-    </div>
+    </header>
   );
 }
