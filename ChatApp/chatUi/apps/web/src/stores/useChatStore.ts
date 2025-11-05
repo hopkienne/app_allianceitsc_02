@@ -4,6 +4,7 @@ import { mockChatService } from '../lib/mock/chat';
 import { signalRService } from '../lib/signalr/hub';
 import { conversationsApi } from '../lib/api/conversations';
 import Toast from '../lib/toast';
+import { useAuthStore } from './useAuthStore';
 
 interface TypingUser {
   userId: string;
@@ -19,6 +20,8 @@ interface ChatState {
   messagePagination: Record<ID, { pageIndex: number; totalPages: number; hasMore: boolean }>;
   isLoadingMoreMessages: boolean;
   typingUsersByConv: Record<ID, TypingUser[]>;
+  // Track conversations that need cache refresh (have new messages)
+  conversationsNeedingRefresh: Set<ID>;
 }
 
 interface ChatActions {
@@ -32,6 +35,7 @@ interface ChatActions {
   ensureDMWith: (userId: ID, currentUserId: ID, displayName?: string) => Promise<string | void>;
   deleteConversation: (conversationId: ID) => Promise<void>;
   updateMessageStatus: (convId: ID, msgId: ID, status: Message['status']) => void;
+  invalidateConversationCache: (conversationId: ID) => void;
   subscribeToMessages: () => () => void;
   receiveMessage: (messageData: any) => void;
   receiveGroupMessage: (bumpData: any) => void;
@@ -48,6 +52,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
   messagePagination: {},
   isLoadingMoreMessages: false,
   typingUsersByConv: {},
+  conversationsNeedingRefresh: new Set<ID>(),
 
   loadConversations: async (userId: ID) => {
     set({ isLoading: true });
@@ -144,7 +149,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
   },
 
   selectConversation: async (conversationId: ID) => {
-  const { selectedConvId, messagesByConv } = get();
+  const { selectedConvId, messagesByConv, conversationsNeedingRefresh } = get();
   if (selectedConvId === conversationId) return; // tránh churn
 
   const prevId = selectedConvId ?? null;
@@ -156,7 +161,6 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
   if (signalRService.isConnected()) {
     try {
       await signalRService.joinConversation(conversationId);
-      console.log('Joined conversation:', conversationId);
     } catch (e) {
       console.error('Failed to join conversation:', e);
       Toast.error('Failed to join conversation');
@@ -172,9 +176,24 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
     }
   }
 
-  // Load messages (refetch/refresh tuỳ tình huống)
-  if (!messagesByConv[conversationId]) {
-    await get().loadMessages(conversationId);
+  // Smart cache strategy: Only reload if needed
+  const needsRefresh = conversationsNeedingRefresh.has(conversationId);
+  const hasCache = !!messagesByConv[conversationId];
+  
+  if (needsRefresh || !hasCache) {
+    // Reload messages if:
+    // 1. Cache is marked as dirty (new messages received)
+    // 2. No cache exists (first time opening)
+    await get().loadMessages(conversationId, 1);
+    
+    // Clear the refresh flag after loading
+    if (needsRefresh) {
+      set((state) => {
+        const newSet = new Set(state.conversationsNeedingRefresh);
+        newSet.delete(conversationId);
+        return { conversationsNeedingRefresh: newSet };
+      });
+    }
   }
   
   await get().markAsRead(conversationId);
@@ -373,6 +392,19 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
   },
 
   /**
+   * Manually invalidate cache for a conversation
+   * This marks the conversation as needing a refresh next time it's opened
+   */
+  invalidateConversationCache: (conversationId: ID) => {
+    set((state) => {
+      const newSet = new Set(state.conversationsNeedingRefresh);
+      newSet.add(conversationId);
+      return { conversationsNeedingRefresh: newSet };
+    });
+    console.log(`🔄 Manually invalidated cache for conversation ${conversationId}`);
+  },
+
+  /**
    * Handle MessageCreated event from server
    * This is called when a new message is created in a conversation
    */
@@ -419,6 +451,18 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
 
     // Determine if we should increment unread count
     const isViewingConversation = selectedConvId === conversationId;
+    const currentUserId = useAuthStore.getState().currentUser?.id;
+    const isOwnMessage = senderId === currentUserId;
+    
+    // Mark conversation as needing refresh when returning (cache invalidation)
+    // Only mark if message is from someone else and user is not currently viewing
+    if (!isOwnMessage && !isViewingConversation) {
+      set((state) => {
+        const newSet = new Set(state.conversationsNeedingRefresh);
+        newSet.add(conversationId);
+        return { conversationsNeedingRefresh: newSet };
+      });
+    }
     
     // Update conversation's last message and bump to top
     set((state) => {
@@ -427,8 +471,10 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
           ? { 
               ...conv, 
               lastMessage: newMessage, 
-              // Only increment unread if not currently viewing this conversation
-              unreadCount: isViewingConversation ? 0 : (conv.unreadCount || 0) + 1 
+              // Only increment unread if:
+              // 1. Message is NOT from current user
+              // 2. User is NOT currently viewing this conversation
+              unreadCount: isOwnMessage || isViewingConversation ? conv.unreadCount : (conv.unreadCount || 0) + 1 
             }
           : conv
       );
@@ -461,9 +507,24 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
     const displayName = bumpData.displayName || bumpData.DisplayName || 'Someone';
     const senderId = bumpData.senderId || bumpData.SenderId;
 
-    console.log('📬 ConversationBump received:', { conversationId, displayName, lastMessagePreview });
+    console.log('📬 ConversationBump received:', { conversationId, displayName, lastMessagePreview, senderId });
 
     const isViewingConversation = selectedConvId === conversationId;
+    
+    // Get current user to check if the message is from them
+    const currentUserId = useAuthStore.getState().currentUser?.id;
+    const isOwnMessage = senderId === currentUserId;
+
+    // Mark conversation as needing refresh when returning (cache invalidation)
+    // Only mark if message is from someone else and user is not currently viewing
+    if (!isOwnMessage && !isViewingConversation) {
+      set((state) => {
+        const newSet = new Set(state.conversationsNeedingRefresh);
+        newSet.add(conversationId);
+        return { conversationsNeedingRefresh: newSet };
+      });
+      console.log(`🔄 Marked conversation ${conversationId} as needing refresh (bump received)`);
+    }
 
     // Update conversation to bump to top and update preview
     set((state) => {
@@ -485,8 +546,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
               status: 'delivered' as const,
               senderName: displayName
             },
-            // Increment unread count only if not currently viewing this conversation
-            unreadCount: isViewingConversation ? 0 : (conversation.unreadCount || 0) + 1
+            // Only increment unread if:
+            // 1. Message is NOT from current user (not own message)
+            // 2. User is NOT currently viewing this conversation
+            unreadCount: isOwnMessage || isViewingConversation 
+              ? conversation.unreadCount 
+              : (conversation.unreadCount || 0) + 1
           };
           
           conversations.unshift(updatedConversation);
@@ -567,8 +632,6 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
     };
 
     const handleTypingStopped = (data: any) => {
-      console.log('✋ TypingStopped event received:', data);
-      
       // Handle both camelCase and PascalCase from server
       const conversationId = data.conversationId || data.ConversationId;
       const userId = data.userId || data.UserId;
@@ -577,8 +640,6 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
         console.warn('⚠️ Invalid typing stopped data:', data);
         return;
       }
-
-      console.log(`✅ User ${userId} stopped typing in conversation ${conversationId}`);
 
       set((state) => {
         const currentTyping = state.typingUsersByConv[conversationId] || [];
@@ -628,8 +689,32 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
    */
   openConversationFromNotification: async (conversationId: ID) => {
     try {
-      // Select the conversation (this will join it via SignalR and load messages)
-      await get().selectConversation(conversationId);
+      const { selectedConvId } = get();
+      const prevId = selectedConvId ?? null;
+
+      // Set the selected conversation immediately
+      set({ selectedConvId: conversationId });
+
+      // Join the conversation via SignalR
+      if (signalRService.isConnected()) {
+        try {
+          await signalRService.joinConversation(conversationId);
+          console.log('Joined conversation from notification:', conversationId);
+        } catch (e) {
+          console.error('Failed to join conversation:', e);
+          Toast.error('Failed to join conversation');
+        }
+
+        if (prevId && prevId !== conversationId) {
+          signalRService.leaveConversation(prevId).catch(err =>
+            console.warn('Leave previous conversation failed (ignored):', err)
+          );
+        }
+      }
+
+      // Always load messages when opening from notification to ensure we have full history
+      // This is important because we might only have the latest message from the notification
+      await get().loadMessages(conversationId, 1);
       
       // Mark as read after opening
       await get().markAsRead(conversationId);

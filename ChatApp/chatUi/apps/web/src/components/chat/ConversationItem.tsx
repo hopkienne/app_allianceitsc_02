@@ -39,6 +39,8 @@ export function ConversationItem({
     }
   };
 
+  const hasUnread = (conversation.unreadCount ?? 0) > 0;
+
   return (
     <li
       onClick={onClick}
@@ -51,21 +53,43 @@ export function ConversationItem({
         'flex items-center p-3 cursor-pointer rounded-lg transition-colors relative group',
         isSelected 
           ? 'bg-blue-500 text-white' 
-          : 'hover:bg-slate-200 dark:hover:bg-slate-700'
+          : hasUnread 
+            ? 'bg-blue-50 dark:bg-slate-700/50 hover:bg-blue-100 dark:hover:bg-slate-700'
+            : 'hover:bg-slate-200 dark:hover:bg-slate-700'
       )}
       aria-current={isSelected}
     >
       <img src={avatarUrl} alt={displayName} className="w-12 h-12 rounded-full mr-4" />
       <div className="flex-1 overflow-hidden">
-        <p className={cn(
-          'font-semibold truncate',
-          isSelected ? 'text-white' : 'text-slate-800 dark:text-slate-100'
-        )}>
-          {displayName}
-        </p>
+        <div className="flex items-center justify-between mb-1">
+          <p className={cn(
+            'font-semibold truncate',
+            isSelected 
+              ? 'text-white' 
+              : hasUnread 
+                ? 'text-slate-900 dark:text-slate-50 font-extrabold' 
+                : 'text-slate-800 dark:text-slate-100'
+          )}>
+            {displayName}
+          </p>
+          {hasUnread && (
+            <span className={cn(
+              'ml-2 min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full text-xs font-bold flex-shrink-0',
+              isSelected 
+                ? 'bg-white text-blue-600' 
+                : 'bg-blue-600 text-white'
+            )}>
+              {conversation.unreadCount! > 99 ? '99+' : conversation.unreadCount}
+            </span>
+          )}
+        </div>
         <p className={cn(
           'text-sm truncate',
-          isSelected ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'
+          isSelected 
+            ? 'text-blue-100' 
+            : hasUnread 
+              ? 'font-bold text-slate-800 dark:text-slate-200' 
+              : 'text-slate-500 dark:text-slate-400'
         )}>
           {lastMessageText}
         </p>
