@@ -1,0 +1,33 @@
+{
+    "extends": "@workspace/typescript-config/react-library.json",
+    "compilerOptions": {
+        "baseUrl": ".",
+        "jsx": "react-jsx",
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ],
+            "@workspace/ui": [
+                "../../packages/ui/src"
+            ],
+            "@workspace/ui/*": [
+                "../../packages/ui/src/*"
+            ],
+            "@workspace/lib": [
+                "../../packages/lib/src"
+            ],
+            "@workspace/lib/*": [
+                "../../packages/lib/src/*"
+            ]
+        }
+    },
+    "include": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.js"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}

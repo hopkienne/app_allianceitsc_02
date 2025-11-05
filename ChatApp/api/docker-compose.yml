@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  chatapp-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chatapp-api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      # Override connection string with environment variable
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
+      # JWT Settings
+      - JwtSettings__Issuer=WebApplicationAPI
+      - JwtSettings__Audience=WebApplicationAPIClient
+      - JwtSettings__Key=${JWT_SECRET_KEY}
+    networks:
+      - chatapp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: PostgreSQL database (if you want to run it locally)
+  # Uncomment this section if you don't want to use the external Aiven database
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: chatapp-postgres
+  #   environment:
+  #     - POSTGRES_DB=chat_app
+  #     - POSTGRES_USER=chatapp_user
+  #     - POSTGRES_PASSWORD=${DB_PASSWORD}
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - chatapp-network
+  #   restart: unless-stopped
+
+networks:
+  chatapp-network:
+    driver: bridge
+
+# volumes:
+#   postgres_data:
