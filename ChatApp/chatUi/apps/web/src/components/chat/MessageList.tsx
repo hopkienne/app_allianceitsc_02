@@ -30,6 +30,64 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, sender, s
     ? 'rounded-t-2xl rounded-bl-2xl'
     : 'rounded-t-2xl rounded-br-2xl';
 
+  // Check icons for message status
+  const CheckIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
+  );
+
+  const CheckCheckIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1.5 13l4 4L15.5 7" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.5 13l4 4L22.5 7" />
+    </svg>
+  );
+
+  const StatusIcon = ({ status }: { status: string }) => {
+    const getStatusInfo = () => {
+      switch (status) {
+        case 'sent':
+          return {
+            icon: <CheckIcon />,
+            color: 'text-slate-400 dark:text-slate-500',
+            tooltip: 'Sent'
+          };
+        case 'delivered':
+          return {
+            icon: <CheckCheckIcon />,
+            color: 'text-slate-400 dark:text-slate-500',
+            tooltip: 'Delivered'
+          };
+        case 'read':
+          return {
+            icon: <CheckCheckIcon />,
+            color: 'text-blue-500 dark:text-blue-400 font-bold',
+            tooltip: 'Read'
+          };
+        default:
+          return null;
+      }
+    };
+
+    const statusInfo = getStatusInfo();
+    if (!statusInfo) return null;
+
+    return (
+      <span 
+        className={cn('flex items-center relative group', statusInfo.color)}
+        title={statusInfo.tooltip}
+      >
+        {statusInfo.icon}
+        {/* Tooltip */}
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 dark:bg-slate-700 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+          {statusInfo.tooltip}
+          <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900 dark:border-t-slate-700"></span>
+        </span>
+      </span>
+    );
+  };
+
   return (
     <div className={cn('flex flex-col', alignment, 'w-full')}>
       <div className="flex items-end gap-2 max-w-xs md:max-w-md">
@@ -48,6 +106,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, sender, s
           )}
           <div className={cn('px-4 py-2', bubbleColor, bubbleRadius, 'shadow-sm')}>
             <p className="text-sm">{message.text}</p>
+          </div>
+          {/* Show timestamp and read status for own messages */}
+          <div className={cn(
+            'flex items-center gap-1.5 mt-1 text-xs',
+            isOwn ? 'flex-row-reverse text-slate-500 dark:text-slate-400' : 'text-slate-500 dark:text-slate-400'
+          )}>
+            <span className="relative group cursor-default">
+              {formatTime(message.createdAt)}
+              {/* Time tooltip with full timestamp */}
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 dark:bg-slate-700 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                {new Date(message.createdAt).toLocaleString()}
+                <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900 dark:border-t-slate-700"></span>
+              </span>
+            </span>
+            {isOwn && message.status && <StatusIcon status={message.status} />}
           </div>
         </div>
       </div>
