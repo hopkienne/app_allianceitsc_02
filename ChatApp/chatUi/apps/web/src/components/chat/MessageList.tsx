@@ -147,7 +147,6 @@ export function MessageList({
   // Reset scroll state when conversation changes
   useEffect(() => {
     if (conversationId !== previousConversationId.current) {
-      console.log('🔄 Conversation changed, will scroll to bottom');
       previousConversationId.current = conversationId;
       setShouldScrollToBottom(true);
       isNearBottom.current = true;

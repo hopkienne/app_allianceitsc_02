@@ -7,9 +7,9 @@ namespace ChatApp.Application.Features.ReadMessage;
 
 public class ReadMessageCommandHandler(
     IConversationRepository conversationRepository,
-    IMessageRepository messageRepository) : IRequestHandler<ReadMessageCommand, bool>
+    IMessageRepository messageRepository) : IRequestHandler<ReadMessageCommand, DateTimeOffset>
 {
-    public async Task<bool> Handle(ReadMessageCommand request, CancellationToken cancellationToken)
+    public async Task<DateTimeOffset> Handle(ReadMessageCommand request, CancellationToken cancellationToken)
     {
         //check user is member of conversation
         var isMember =
@@ -42,6 +42,6 @@ public class ReadMessageCommandHandler(
         }
         
         
-        return true;
+        return existReadMessageState?.LastReadAt ?? DateTimeOffset.Now;
     }
 }
