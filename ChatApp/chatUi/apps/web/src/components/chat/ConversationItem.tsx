@@ -22,13 +22,13 @@ export function ConversationItem({
   const [isHovered, setIsHovered] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   
-  const displayName = conversation.title || otherUser?.displayName || 'Unknown';
+  const displayName = conversation.title ||'Users';
   const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
   
   // Format last message
   const lastMessage = conversation.lastMessage;
   const lastMessageText = lastMessage 
-    ? `${lastMessage.senderId === currentUser.id ? 'You: ' : ''}${lastMessage.text}` 
+    ? `${lastMessage.senderId === currentUser.id ? 'You: ' : lastMessage?.senderName ?? ''}: ${lastMessage.text}` 
     : 'No messages yet';
 
   const handleDelete = (e: React.MouseEvent) => {

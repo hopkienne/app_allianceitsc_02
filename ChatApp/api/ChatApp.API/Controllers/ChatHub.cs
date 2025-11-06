@@ -108,6 +108,7 @@ public class ChatHub(
                 .SendAsync("ConversationBump", new
                 {
                     ConversationId = conversationId,
+                    LastMessageId = result.MessageId,
                     LastMessagePreview = content,
                     DisplayName = currentUserService.GetCurrentDisplayName(),
                     SenderId = Guid.Parse(Context.UserIdentifier!),
@@ -147,8 +148,8 @@ public class ChatHub(
     {
         var userId = Guid.Parse(Context.UserIdentifier!);
         //update read state
-        var isRead = await mediator.Send(new ReadMessageCommand(conversationId, userId, lastReadMessageId));
-        if (isRead)
+        var readAt = await mediator.Send(new ReadMessageCommand(conversationId, userId, lastReadMessageId));
+        if (readAt < DateTimeOffset.MinValue)
         {
             await Clients.Group(conversationId.ToString())
                 .SendAsync("ReadReceiptUpdated", new
@@ -156,7 +157,7 @@ public class ChatHub(
                     ConversationId = conversationId,
                     UserId = userId,
                     LastReadMessageId = lastReadMessageId,
-                    LastReadAt = DateTimeOffset.UtcNow
+                    LastReadAt = readAt
                 });
         }
     }
