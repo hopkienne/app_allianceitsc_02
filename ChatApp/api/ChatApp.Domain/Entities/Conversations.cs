@@ -21,4 +21,18 @@ public class Conversations
         Id = Guid.CreateVersion7();
         CreatedAt = DateTimeOffset.UtcNow;
     }
+    
+    public Conversations(ConversationType type, string? name, List<Guid> memberIds, Guid createdByUserId, string createdByDisplayName) : this()
+    {
+        Type = type;
+        Name = name;
+        CreatedByUserId = createdByUserId;
+        Members = memberIds.Select(i => new ConversationMembers
+        {
+            UserId = i,
+            AddedByUserId = createdByUserId,
+            AddedByUserName = createdByDisplayName
+        }).ToList();
+
+    }
 }

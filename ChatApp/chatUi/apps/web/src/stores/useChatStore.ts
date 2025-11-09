@@ -34,6 +34,8 @@ interface ChatActions {
     markAsRead: (convId: ID) => Promise<void>
     ensureDMWith: (userId: ID, currentUserId: ID, displayName?: string) => Promise<string | void>
     deleteConversation: (conversationId: ID) => Promise<void>
+    kickMember: (conversationId: ID, memberId: ID, displayName: string) => Promise<void>
+    leaveGroup: (conversationId: ID) => Promise<void>
     updateMessageStatus: (convId: ID, msgId: ID, status: Message['status']) => void
     invalidateConversationCache: (conversationId: ID) => void
     subscribeToMessages: () => () => void
@@ -103,6 +105,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
                 text: msg.content,
                 createdAt: msg.sentAt,
                 status: msg.isRead ? 'read' : 'delivered',
+                isSystem: msg.isSystem,
             }))
 
             // Messages come from newest to oldest from API, so reverse for chronological order
@@ -372,6 +375,64 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
         } catch (error) {
             console.error('Failed to delete conversation:', error)
             Toast.error('Failed to delete conversation')
+            throw error
+        }
+    },
+
+    /**
+     * Kick a member from a group conversation
+     * @param conversationId - The conversation ID
+     * @param memberId - The member ID to kick
+     * @param displayName - The display name of the member being kicked
+     */
+    kickMember: async (conversationId: ID, memberId: ID, displayName: string) => {
+        try {
+            // Call API to kick the member
+            await conversationsApi.kickMember(conversationId, memberId, displayName)
+
+            Toast.success(`${displayName} has been removed from the group`)
+
+            // The backend will send SignalR events to notify all members
+            // The MemberKicked event handler will update the UI
+        } catch (error) {
+            console.error('Failed to kick member:', error)
+            Toast.error('Failed to remove member from group')
+            throw error
+        }
+    },
+
+    /**
+     * Leave a group conversation
+     * @param conversationId - The conversation ID
+     */
+    leaveGroup: async (conversationId: ID) => {
+        try {
+            // Call API to leave the group
+            await conversationsApi.leaveGroup(conversationId)
+
+            // Leave the SignalR conversation room
+            if (signalRService.isConnected()) {
+                await signalRService.leaveConversation(conversationId)
+            }
+
+            // Remove the conversation from store
+            set(state => {
+                const newMessagesByConv = { ...state.messagesByConv }
+                delete newMessagesByConv[conversationId]
+
+                return {
+                    conversations: state.conversations.filter(c => c.id !== conversationId),
+                    messagesByConv: newMessagesByConv,
+                    selectedConvId: state.selectedConvId === conversationId ? null : state.selectedConvId,
+                }
+            })
+
+            Toast.success('You have left the group')
+
+            // The backend will send GroupLeave event to remaining members
+        } catch (error) {
+            console.error('Failed to leave group:', error)
+            Toast.error('Failed to leave group')
             throw error
         }
     },
@@ -694,6 +755,154 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
             })
         }
 
+        /**
+         * Handle KickedFromGroup event
+         * This is triggered when the current user is kicked from a group
+         */
+        const handleKickedFromGroup = (data: any) => {
+            const conversationId = data.conversationId || data.ConversationId
+            const message = data.message || data.Message
+
+            console.log('🚫 Kicked from group:', { conversationId, message })
+
+            if (!conversationId) {
+                console.warn('⚠️ Invalid KickedFromGroup payload:', data)
+                return
+            }
+
+            // Show notification to user
+            Toast.error(message || 'You have been removed from the group')
+
+            // Leave the SignalR conversation room
+            if (signalRService.isConnected()) {
+                signalRService
+                    .leaveConversation(conversationId)
+                    .catch(err => console.warn('Failed to leave conversation after kick:', err))
+            }
+
+            // Remove the conversation from store
+            set(state => {
+                const newMessagesByConv = { ...state.messagesByConv }
+                delete newMessagesByConv[conversationId]
+
+                return {
+                    conversations: state.conversations.filter(c => c.id !== conversationId),
+                    messagesByConv: newMessagesByConv,
+                    selectedConvId: state.selectedConvId === conversationId ? null : state.selectedConvId,
+                }
+            })
+        }
+
+        /**
+         * Handle MemberKicked event
+         * This is triggered when another member is kicked from the group
+         */
+        const handleMemberKicked = (data: any) => {
+            const conversationId = data.conversationId || data.ConversationId
+            const conversationName = data.conversationName || data.ConversationName
+            const memberId = data.memberId || data.MemberId
+            const displayName = data.displayName || data.DisplayName
+            const kickedByDisplayName = data.kickedByDisplayName || data.KickedByDisplayName
+            const message = data.message || data.Message
+
+            console.log('👋 Member kicked from group:', { conversationId, memberId, displayName, kickedByDisplayName })
+
+            if (!conversationId) {
+                console.warn('⚠️ Invalid MemberKicked payload:', data)
+                return
+            }
+
+            // Show system message in the conversation
+            const systemMessage: Message = {
+                id: `system-kick-${Date.now()}`,
+                conversationId,
+                senderId: 'system',
+                text: message || `${displayName} has been removed by ${kickedByDisplayName}`,
+                createdAt: new Date().toISOString(),
+                status: 'delivered',
+                isSystem: true,
+            }
+
+            set(state => ({
+                messagesByConv: {
+                    ...state.messagesByConv,
+                    [conversationId]: [...(state.messagesByConv[conversationId] || []), systemMessage],
+                },
+            }))
+
+            // Show toast notification if not viewing the conversation
+            const { selectedConvId } = get()
+            if (selectedConvId !== conversationId) {
+                const groupName = conversationName
+
+                // Dispatch custom event for UI to handle the toast
+                const customEvent = new CustomEvent('chat:memberKicked', {
+                    detail: {
+                        conversationId,
+                        groupName,
+                        memberName: displayName,
+                        kickedByName: kickedByDisplayName,
+                        message: message,
+                    },
+                })
+                window.dispatchEvent(customEvent)
+            }
+        }
+
+        /**
+         * Handle GroupLeave event
+         * This is triggered when a member leaves the group
+         */
+        const handleGroupLeave = (data: any) => {
+            const conversationId = data.conversationId || data.ConversationId
+            const conversationName = data.conversationName || data.ConversationName
+            const memberId = data.memberId || data.MemberId
+            const displayName = data.displayName || data.DisplayName
+            const message = data.message || data.Message
+
+            console.log('🚪 Member left group:', { conversationId, conversationName, memberId, displayName })
+
+            if (!conversationId) {
+                console.warn('⚠️ Invalid GroupLeave payload:', data)
+                return
+            }
+
+            // Show system message in the conversation
+            const systemMessage: Message = {
+                id: `system-leave-${Date.now()}`,
+                conversationId,
+                senderId: 'system',
+                text: message || `${displayName} has left the group`,
+                createdAt: new Date().toISOString(),
+                status: 'delivered',
+                isSystem: true,
+            }
+
+            set(state => ({
+                messagesByConv: {
+                    ...state.messagesByConv,
+                    [conversationId]: [...(state.messagesByConv[conversationId] || []), systemMessage],
+                },
+            }))
+
+            // Show toast notification if not viewing the conversation
+            const { selectedConvId } = get()
+            if (selectedConvId !== conversationId) {
+                const groupName = conversationName
+
+                // Dispatch custom event for UI to handle the toast
+                const customEvent = new CustomEvent('chat:memberLeft', {
+                    detail: {
+                        conversationId,
+                        groupName,
+                        memberName: displayName,
+                        message: message,
+                    },
+                })
+                window.dispatchEvent(customEvent)
+            }
+        }
+
         // Register SignalR event handlers
         signalRService.on('MessageCreated', handleMessageCreated)
         signalRService.on('ConversationBump', handleConversationBump)
@@ -702,6 +911,9 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
         signalRService.on('TypingStarted', handleTypingStarted)
         signalRService.on('TypingStopped', handleTypingStopped)
         signalRService.on('ReadReceiptUpdated', handleReadReceiptUpdated)
+        signalRService.on('KickedFromGroup', handleKickedFromGroup)
+        signalRService.on('MemberKicked', handleMemberKicked)
+        signalRService.on('GroupLeave', handleGroupLeave)
 
         console.log('Subscribed to message events')
 
@@ -714,6 +926,9 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
             signalRService.off('TypingStarted', handleTypingStarted)
             signalRService.off('TypingStopped', handleTypingStopped)
             signalRService.off('ReadReceiptUpdated', handleReadReceiptUpdated)
+            signalRService.off('KickedFromGroup', handleKickedFromGroup)
+            signalRService.off('MemberKicked', handleMemberKicked)
+            signalRService.off('GroupLeave', handleGroupLeave)
             console.log('Unsubscribed from message events')
         }
     },

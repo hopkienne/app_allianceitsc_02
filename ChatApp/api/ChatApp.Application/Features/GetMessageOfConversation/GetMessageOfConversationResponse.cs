@@ -8,4 +8,5 @@ public class GetMessageOfConversationResponse
     public string Content { get; set; } = string.Empty;
     public DateTimeOffset SentAt { get; set; }
     public bool IsRead { get; set; }
+    public bool IsSystem { get; set; }
 }

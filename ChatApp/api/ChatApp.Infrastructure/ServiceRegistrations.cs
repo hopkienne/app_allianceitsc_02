@@ -19,6 +19,7 @@ public static class ServiceRegistrations
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IPasswordHashing, PasswordHashing>();
         services.AddSingleton<IUserIdProvider, AppUserCodeProvider>();
+        services.AddScoped<IChatNotificationService, ChatNotificationService>();
 
         //add stores
         services.AddSingleton<IGroupMembershipStore, InMemoryGroupStore>();
@@ -30,6 +31,7 @@ public static class ServiceRegistrations
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IConversationMembersRepository, ConversationMembersRepository>();
         return services;
     }
 }

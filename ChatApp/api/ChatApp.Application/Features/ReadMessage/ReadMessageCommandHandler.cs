@@ -12,7 +12,7 @@ public class ReadMessageCommandHandler(
     public async Task<DateTimeOffset> Handle(ReadMessageCommand request, CancellationToken cancellationToken)
     {
         //check user is member of conversation
-        var isMember =
+        var (isMember, _) =
             await conversationRepository.IsMemberInConversationAsync(request.ConversationId, request.UserId,
                 cancellationToken);
         if (!isMember)

@@ -6,7 +6,9 @@ public class ConversationMembers
     public Guid UserId { get; set; }
     public DateTimeOffset JoinedAt { get; set; }
     public bool IsActive { get; set; } = true;
-
+    public DateTimeOffset? HistoryClearedAt { get; set; }
+    public Guid? AddedByUserId { get; set; }
+    public string? AddedByUserName { get; set; }
     public Conversations Conversation { get; set; } = default!;
     public Users User { get; set; } = default!;
 

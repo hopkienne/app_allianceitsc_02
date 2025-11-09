@@ -27,6 +27,8 @@ public class ChatDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        //global query
+        modelBuilder.Entity<Users>().HasQueryFilter(x => x.Id != Contracts.Utils.System.SystemId);
         // Schema mặc định
         modelBuilder.HasDefaultSchema("chat");
 

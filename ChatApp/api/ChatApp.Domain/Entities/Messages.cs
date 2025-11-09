@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using ChatApp.Contracts.Utils;
 
 namespace ChatApp.Domain.Entities;
@@ -30,6 +31,17 @@ public class Messages
             ConversationId = conversationId,
             SenderUserId = senderId,
             Content = content
+        };
+    }
+
+    public static Messages CreateMessageSystem(Guid conversationId, string content) 
+    {
+        return new Messages
+        {
+            ConversationId = conversationId,
+            SenderUserId = Contracts.Utils.System.SystemId,
+            Content = content,
+            CreatedAt = DateTimeOffset.UtcNow
         };
     }
 }

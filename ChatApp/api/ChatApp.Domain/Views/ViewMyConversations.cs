@@ -13,4 +13,5 @@ public class ViewMyConversations
     public DateTimeOffset? LastMessageAt { get; set; }
     public string? LastMessageSenderDisplayName { get; set; }
     public long UnreadCount { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }
