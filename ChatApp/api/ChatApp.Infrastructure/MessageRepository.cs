@@ -9,8 +9,9 @@ namespace ChatApp.Infrastructure;
 
 public class MessageRepository(ChatDbContext context) : IMessageRepository
 {
+    private readonly Guid _systemId = Contracts.Utils.System.SystemId;
     public async Task<(int count, List<GetMessageOfConversationResponse> data)> GetMessageOfConversationAsync(
-        Guid conversationId,
+        Guid conversationId, DateTimeOffset historyClearedAt,
         Guid userId, PagingRequest pagingRequest, CancellationToken cancellationToken)
     {
         // Lấy mốc LastReadAt (nếu chưa có record thì dùng MinValue)
@@ -20,7 +21,7 @@ public class MessageRepository(ChatDbContext context) : IMessageRepository
             .FirstOrDefaultAsync(cancellationToken) ?? DateTimeOffset.MinValue;
 
         var messagesQuery = context.Messages
-            .Where(m => m.ConversationId == conversationId)
+            .Where(m => m.ConversationId == conversationId && m.CreatedAt > historyClearedAt)
             .OrderByDescending(m => m.CreatedAt)
             .Select(m => new GetMessageOfConversationResponse
             {
@@ -29,7 +30,8 @@ public class MessageRepository(ChatDbContext context) : IMessageRepository
                 SenderId = m.SenderUserId,
                 Content = m.Content,
                 SentAt = m.CreatedAt,
-                IsRead = m.CreatedAt <= lastReadAt
+                IsRead = m.CreatedAt <= lastReadAt,
+                IsSystem = m.SenderUserId == _systemId
             });
 
         var totalCount = await messagesQuery.CountAsync(cancellationToken);

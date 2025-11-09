@@ -6,7 +6,7 @@ namespace ChatApp.Application.Abstractions;
 
 public interface IMessageRepository
 {
-    Task<(int count, List<GetMessageOfConversationResponse> data)> GetMessageOfConversationAsync(Guid conversationId,
+    Task<(int count, List<GetMessageOfConversationResponse> data)> GetMessageOfConversationAsync(Guid conversationId, DateTimeOffset historyClearedAt,
         Guid userId, PagingRequest pagingRequest, CancellationToken cancellationToken);
     Task<Messages?> GetMessageByIdAsync(Guid messageId, CancellationToken cancellationToken);
     Task<Guid> CreateMessageAsync(Messages message, CancellationToken cancellationToken);

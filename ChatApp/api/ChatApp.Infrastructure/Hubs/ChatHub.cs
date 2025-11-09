@@ -1,12 +1,11 @@
-using System.Runtime.InteropServices.ComTypes;
 using ChatApp.Application.Abstractions;
 using ChatApp.Application.Features.CreateMessage;
 using ChatApp.Application.Features.ReadMessage;
-using ChatApp.Infrastructure.Services.User; // cần có ConversationId trong command
+using ChatApp.Infrastructure.Services.User;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 
-namespace ChatApp.Controllers;
+namespace ChatApp.Infrastructure.Hubs;
 
 public class ChatHub(
     IGroupMembershipStore groupStore,
@@ -149,8 +148,6 @@ public class ChatHub(
         var userId = Guid.Parse(Context.UserIdentifier!);
         //update read state
         var readAt = await mediator.Send(new ReadMessageCommand(conversationId, userId, lastReadMessageId));
-        if (readAt < DateTimeOffset.MinValue)
-        {
             await Clients.Group(conversationId.ToString())
                 .SendAsync("ReadReceiptUpdated", new
                 {
@@ -159,6 +156,6 @@ public class ChatHub(
                     LastReadMessageId = lastReadMessageId,
                     LastReadAt = readAt
                 });
-        }
+        
     }
 }

@@ -7,12 +7,14 @@ interface ChatHeaderProps {
   title?: string;
   avatarUrl?: string;
   onBack?: () => void;
+  isGroup?: boolean;
+  onInfoClick?: () => void;
 }
 
-export function ChatHeader({ user, title, avatarUrl, onBack }: ChatHeaderProps) {
+export function ChatHeader({ user, title, avatarUrl, onBack, isGroup, onInfoClick }: ChatHeaderProps) {
   const displayName = title || user?.displayName || 'Chat';
   const avatar = avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
-  const subtitle = user ? 'Direct Message' : 'Chat';
+  const subtitle = isGroup ? 'Group Chat' : user ? 'Direct Message' : 'Chat';
 
   return (
     <header className="flex items-center p-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 z-10">
@@ -28,6 +30,30 @@ export function ChatHeader({ user, title, avatarUrl, onBack }: ChatHeaderProps) 
           {subtitle}
         </p>
       </div>
+      
+      {/* Info button for group conversations */}
+      {isGroup && onInfoClick && (
+        <button
+          onClick={onInfoClick}
+          className="ml-2 p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          aria-label="Group info"
+          title="Group info"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"
+            />
+          </svg>
+        </button>
+      )}
     </header>
   );
 }

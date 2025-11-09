@@ -19,3 +19,17 @@ public enum ConversationType
     /// </summary>
     EXTERNAL_GROUP
 }
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum Action
+{
+    /// <summary>
+    /// user leave conversation
+    /// </summary>
+    LEAVE,
+    
+    /// <summary>
+    /// user kicked out of chat
+    /// </summary>
+    KICK
+}

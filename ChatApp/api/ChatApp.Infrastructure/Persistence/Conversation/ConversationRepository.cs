@@ -26,11 +26,8 @@ public class ConversationRepository(ChatDbContext context) : IConversationReposi
         return saved > 0;
     }
 
-    public async Task<bool> DeleteConversationAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<bool> DeleteConversationAsync(Conversations entity, CancellationToken cancellationToken)
     {
-        var entity = await context.Conversations.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
-        if (entity is null)
-            return false;
         _ = context.Conversations.Remove(entity);
         var saved = await context.SaveChangesAsync(cancellationToken);
         return saved > 0;
@@ -42,9 +39,9 @@ public class ConversationRepository(ChatDbContext context) : IConversationReposi
     public async Task<List<ViewMyConversations>> GetConversationByUserAsync(Guid userId,
         CancellationToken cancellationToken)
     {
-        return await context.VMyConversations.Where(v => v.UserId == userId).ToListAsync(cancellationToken);
+        return await context.VMyConversations.Where(v => v.UserId == userId)
+            .OrderByDescending(v => v.LastMessageAt ?? v.CreatedAt).ToListAsync(cancellationToken);
     }
-
 
     public async Task<Guid> CheckOrCreateConversationExistsAsync(Guid userOneId, Guid userTwoId,
         CancellationToken cancellationToken)
@@ -107,12 +104,15 @@ public class ConversationRepository(ChatDbContext context) : IConversationReposi
         return (isMember, ids);
     }
 
-    public async Task<bool> IsMemberInConversationAsync(Guid conversationId, Guid userId,
+    public async Task<(bool isMember, DateTimeOffset HistoryClearedAt)> IsMemberInConversationAsync(
+        Guid conversationId, Guid userId,
         CancellationToken cancellationToken)
     {
-        var isMember = await context.ConversationMembers
-            .AnyAsync(cm => cm.ConversationId == conversationId && cm.UserId == userId && cm.IsActive,
+        var member = await context.ConversationMembers
+            .Where(cm => cm.ConversationId == conversationId && cm.UserId == userId && cm.IsActive).FirstOrDefaultAsync(
                 cancellationToken);
-        return isMember;
+        return member is null
+            ? (false, DateTimeOffset.MinValue)
+            : (true, member.HistoryClearedAt ?? member.JoinedAt);
     }
 }

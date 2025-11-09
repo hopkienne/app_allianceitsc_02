@@ -19,7 +19,7 @@ namespace ChatApp.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("chat")
-                .HasAnnotation("ProductVersion", "8.0.21")
+                .HasAnnotation("ProductVersion", "9.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "chat", "ConversationType", new[] { "direct", "group", "external_group" });
@@ -67,6 +67,15 @@ namespace ChatApp.Infrastructure.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AddedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AddedByUserName")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("HistoryClearedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -134,7 +143,7 @@ namespace ChatApp.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("CreatedByUserId")
+                    b.Property<Guid>("CreatedByUserId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Name")
@@ -259,7 +268,7 @@ namespace ChatApp.Infrastructure.Migrations
                     b.Property<Guid?>("CreatedByUserId")
                         .HasColumnType("uuid");
 
-                    b.Property<string[]>("IpAllowlist")
+                    b.PrimitiveCollection<string[]>("IpAllowlist")
                         .HasColumnType("cidr[]");
 
                     b.Property<bool>("IsActive")
@@ -268,7 +277,7 @@ namespace ChatApp.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("LastUsedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string[]>("Scopes")
+                    b.PrimitiveCollection<string[]>("Scopes")
                         .IsRequired()
                         .HasColumnType("text[]");
 
@@ -364,6 +373,9 @@ namespace ChatApp.Infrastructure.Migrations
                     b.Property<string>("ConversationType")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("LastMessageAt")
                         .HasColumnType("timestamp with time zone");
@@ -463,7 +475,8 @@ namespace ChatApp.Infrastructure.Migrations
                     b.HasOne("ChatApp.Domain.Entities.Users", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("CreatedByUser");
                 });
