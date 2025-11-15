@@ -269,7 +269,7 @@ namespace ChatApp.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.PrimitiveCollection<string[]>("IpAllowlist")
-                        .HasColumnType("cidr[]");
+                        .HasColumnType("text[]");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");

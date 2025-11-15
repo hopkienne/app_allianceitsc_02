@@ -151,7 +151,7 @@ public class ChatDbContext : DbContext
             b.ToTable("OAuthClients");
             b.Property(p => p.Id).HasDefaultValueSql("gen_random_uuid()");
             b.Property(p => p.Scopes).HasColumnType("text[]");
-            b.Property(p => p.IpAllowlist).HasColumnType("cidr[]");
+            b.Property(p => p.IpAllowlist).HasColumnType("text[]");
             b.HasIndex(p => p.ClientId).IsUnique();
             b.HasOne(p => p.CreatedByUser)
                 .WithMany()

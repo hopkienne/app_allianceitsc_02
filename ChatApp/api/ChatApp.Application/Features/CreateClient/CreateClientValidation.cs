@@ -11,7 +11,5 @@ public class CreateClientValidation : AbstractValidator<CreateClientCommand>
             .MaximumLength(100).WithMessage("Client name must not exceed 100 characters.");
         RuleFor(x => x.Scopes)
             .NotEmpty().WithMessage("At least one scope is required.");
-        RuleFor(x => x.Secret)
-            .NotEmpty().WithMessage("Client secret is required.");
     }
 }

@@ -11,6 +11,7 @@ public class LeaveConversationGroupCommandHandler(
     IConversationMembersRepository conversationMembersRepository,
     IConversationRepository conversationRepository,
     IMessageRepository messageRepository,
+    IGroupMembershipStore groupMembershipStore,
     IChatNotificationService chatNotificationService)
     : IRequestHandler<LeaveConversationGroupCommand, bool>
 {
@@ -35,11 +36,13 @@ public class LeaveConversationGroupCommandHandler(
             //create system message
             var systemMessage = Messages.CreateMessageSystem(request.ConversationId, content);
             await messageRepository.CreateMessageAsync(systemMessage, cancellationToken);
-
-            //bump to conversation
+            
             await chatNotificationService.NotifyMemberLeaveGroupAsync(request.ConversationId, conversation.Name!,
                 request.Action, request.KickedByMemberId, request.KickedByDisplayName, request.MemberId,
                 request.DisplayName!, cancellationToken);
+            
+            // Remove from group membership store AFTER notification is sent
+            await groupMembershipStore.RemoveMemberAsync(request.ConversationId.ToString(), request.MemberId.ToString());
         }
 
         return isLeaved;

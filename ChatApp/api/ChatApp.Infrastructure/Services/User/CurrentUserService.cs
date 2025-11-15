@@ -28,4 +28,12 @@ public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICur
 
         throw new InvalidOperationException("Display name not found in the current context.");
     }
+
+    public Guid GetClientId()
+    {
+        var clientIdString = httpContextAccessor.HttpContext?.User
+            .FindFirst("client_id")?.Value;
+
+        return Guid.TryParse(clientIdString, out var clientId) ? clientId : throw new InvalidOperationException("Client ID not found in the current context.");
+    }
 }

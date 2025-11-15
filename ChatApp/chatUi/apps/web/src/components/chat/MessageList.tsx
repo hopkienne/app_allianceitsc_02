@@ -84,8 +84,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, sender, s
     }
 
     return (
-        <div className={cn('flex flex-col', alignment, 'w-full')}>
-            <div className="flex items-end gap-2 max-w-xs md:max-w-md">
+        <div className={cn('flex flex-col', alignment, 'w-full px-1')}>
+            <div className="flex items-end gap-2 max-w-[85%] sm:max-w-md">
                 {!isOwn && (
                     <img
                         src={`https://ui-avatars.com/api/?name=${encodeURIComponent(sender?.displayName || 'U')}&background=random`}
@@ -100,7 +100,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, sender, s
                         </span>
                     )}
                     <div className={cn('px-4 py-2', bubbleColor, bubbleRadius, 'shadow-sm')}>
-                        <p className="text-sm">{message.text}</p>
+                        <p className="text-sm break-words overflow-wrap-anywhere">{message.text}</p>
                     </div>
                     {/* Show timestamp and read status for own messages */}
                     <div
@@ -137,7 +137,6 @@ export function MessageList({
     hasMore = false,
     isLoadingMore = false,
 }: MessageListProps) {
-    console.log('🚀 ~ MessageList ~ messages:', messages)
     const scrollRef = useRef<HTMLDivElement>(null)
     const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true)
     const previousScrollHeight = useRef<number>(0)
@@ -201,7 +200,7 @@ export function MessageList({
 
     return (
         <div
-            className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900"
+            className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 bg-slate-50 dark:bg-slate-900"
             ref={scrollRef}
             onScroll={handleScroll}
         >

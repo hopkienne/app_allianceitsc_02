@@ -42,4 +42,11 @@ public class UsersRepository(ChatDbContext context) : IUsersRepository
             .ToListAsync(cancellationToken);
         return isExists;
     }
+
+    public async Task<bool> AddRangeUserAsync(IEnumerable<Users> users, CancellationToken cancellationToken)
+    {
+        await _users.AddRangeAsync(users, cancellationToken);
+        var result = await context.SaveChangesAsync(cancellationToken);
+        return result > 0;
+    }
 }

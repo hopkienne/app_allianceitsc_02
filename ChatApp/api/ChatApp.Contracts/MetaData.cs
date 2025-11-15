@@ -2,7 +2,8 @@ namespace ChatApp.Contracts;
 
 public static class MetaData
 {
-    public static string ProductName => "chatapp";
-    public static string ProductVersion => "1.0.0";
-    public static string ExternalConversation => "external_conversation";
+    public const string ProductName = "chatapp";
+    public const string ProductVersion = "1.0.0";
+    public const string ExternalConversation = "external_conversation";
+    public const string Users = "users";
 }
