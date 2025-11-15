@@ -4,4 +4,5 @@ public interface ICurrentUserService
 {
     Guid GetCurrentUserId();
     string GetCurrentDisplayName();
+    Guid GetClientId();
 }

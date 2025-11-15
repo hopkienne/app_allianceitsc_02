@@ -5,7 +5,7 @@ public class OAuthClients
     public Guid Id { get; set; }
     public string ClientId { get; set; } = default!;
     public string ClientName { get; set; } = default!;
-    public string[] Scopes { get; set; } = Array.Empty<string>();
+    public string[] Scopes { get; set; } = [];
     public bool IsActive { get; set; } = true;
 
     public string[]?

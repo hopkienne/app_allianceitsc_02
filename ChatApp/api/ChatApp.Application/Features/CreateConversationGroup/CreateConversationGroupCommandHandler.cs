@@ -16,21 +16,27 @@ public class CreateConversationGroupCommandHandler(
         CancellationToken cancellationToken)
     {
         // Validate all users exist (including creator)
-        var listUserCheck = new List<Guid>(request.MemberIds) { request.CreatedByUserId };
+        var listUserCheck = new List<Guid>(request.MemberIds);
+        if (!request.IsExternal)
+        {
+            listUserCheck.Add(request.CreatedByUserId);
+        }
+        
         var isUsersNotExist = await usersRepository
             .CheckUsersExistsByIdAsync(listUserCheck, cancellationToken);
         if (isUsersNotExist.Count < listUserCheck.Count)
         {
             throw new NotFoundException("One or more users do not exist.");
         }
-        
+
         // Create conversation group
         var conversationGroup =
-            new Domain.Entities.Conversations(ConversationType.GROUP, request.GroupName, listUserCheck, request.CreatedByUserId, request.CreatedByDisplayName);
-        
+            new Domain.Entities.Conversations(request.ConversationType, request.GroupName, listUserCheck,
+                request.CreatedByUserId, request.CreatedByDisplayName);
+
         var conversationGroupId = await conversationRepository
             .CreateConversationAsync(conversationGroup, cancellationToken);
-        
+
         // Notify all members about the new group via SignalR
         await chatNotificationService.NotifyGroupCreatedAsync(
             conversationGroupId,
@@ -38,7 +44,7 @@ public class CreateConversationGroupCommandHandler(
             request.CreatedByUserId,
             listUserCheck,
             cancellationToken);
-        
+
         // Return the response
         return new CreateConversationGroupResponse
         {

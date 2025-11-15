@@ -1,0 +1,764 @@
+{
+    "info": {
+        "_postman_id": "chatapp-external-api-v1",
+        "name": "ChatApp External System API",
+        "description": "API collection for ChatApp External System integration using Client Credentials authentication.\n\n## Quick Start\n\n1. **Create Client**: Use the 'Create OAuth Client' request to get credentials\n2. **Set Variables**: Copy `clientId` and `clientSecret` to collection variables\n3. **Sync Users**: Use 'Sync Users' to import users from your system\n4. **Create Conversations**: Use 'Create Conversation Group' to create group chats\n\n## Authentication\n\nAll endpoints (except Create Client) require:\n- `X-Client-Id` header with your client ID\n- `X-Client-Secret` header with your plain-text secret\n\nThese are automatically added from collection variables.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "version": "1.0.0"
+    },
+    "auth": {
+        "type": "noauth"
+    },
+    "item": [
+        {
+            "name": "Authentication",
+            "item": [
+                {
+                    "name": "Create OAuth Client",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "// Parse response",
+                                    "const response = pm.response.json();",
+                                    "",
+                                    "// Save credentials to collection variables",
+                                    "if (response.clientId && response.clientSecret) {",
+                                    "    pm.collectionVariables.set('clientId', response.clientId);",
+                                    "    pm.collectionVariables.set('clientSecret', response.clientSecret);",
+                                    "    ",
+                                    "    console.log('✅ Client created successfully!');",
+                                    "    console.log('Client ID:', response.clientId);",
+                                    "    console.log('Client Secret:', response.clientSecret);",
+                                    "    console.log('');",
+                                    "    console.log('⚠️ SAVE THESE CREDENTIALS! The secret cannot be retrieved later.');",
+                                    "} else {",
+                                    "    console.log('❌ Failed to create client');",
+                                    "}",
+                                    "",
+                                    "// Validate response",
+                                    "pm.test('Status code is 200', function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test('Response has clientId', function () {",
+                                    "    pm.expect(response).to.have.property('clientId');",
+                                    "});",
+                                    "",
+                                    "pm.test('Response has clientSecret', function () {",
+                                    "    pm.expect(response).to.have.property('clientSecret');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"External System Integration - {{$randomCompanyName}}\",\n  \"scopes\": [\n    \"chatapp.users.create\",\n    \"chatapp.users.read\",\n    \"chatapp.external_conversation.create\",\n    \"chatapp.external_conversation.read\"\n  ],\n  \"expiresAt\": \"2026-12-31T23:59:59Z\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/create-client",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "create-client"
+                            ]
+                        },
+                        "description": "Creates a new OAuth client and returns credentials.\n\n**Important**: Save the `clientSecret` immediately! It cannot be retrieved later.\n\n### Request Body\n- `name`: Descriptive name for your client\n- `scopes`: Array of permission scopes (see documentation)\n- `expiresAt`: Optional expiration date (ISO 8601 format)\n\n### Response\n- `id`: Database ID (reference only)\n- `clientId`: Use in X-Client-Id header\n- `clientSecret`: Use in X-Client-Secret header (plain-text)\n\n### Available Scopes\n**User Management:**\n- `chatapp.users.read`\n- `chatapp.users.create`\n- `chatapp.users.update`\n- `chatapp.users.delete`\n\n**Conversation Management:**\n- `chatapp.external_conversation.read`\n- `chatapp.external_conversation.create`\n- `chatapp.external_conversation.update`\n- `chatapp.external_conversation.delete`"
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"name\": \"Production Integration\",\n  \"scopes\": [\n    \"chatapp.users.create\",\n    \"chatapp.external_conversation.create\"\n  ],\n  \"expiresAt\": \"2026-12-31T23:59:59Z\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/auth/create-client",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "auth",
+                                        "create-client"
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n  \"id\": \"019a858c-782a-74b1-b246-cb59f7b55d50\",\n  \"clientId\": \"019a858d-1234-5678-9abc-def012345678\",\n  \"clientSecret\": \"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6\"\n}"
+                        }
+                    ]
+                }
+            ],
+            "description": "Endpoints for managing OAuth client credentials."
+        },
+        {
+            "name": "User Management",
+            "item": [
+                {
+                    "name": "Sync Users from External System",
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "exec": [
+                                    "// Check if credentials are set",
+                                    "const clientId = pm.collectionVariables.get('clientId');",
+                                    "const clientSecret = pm.collectionVariables.get('clientSecret');",
+                                    "",
+                                    "if (!clientId || !clientSecret) {",
+                                    "    console.log('⚠️ WARNING: Client credentials not set!');",
+                                    "    console.log('Please run \"Create OAuth Client\" first and save the credentials.');",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Status code is 200', function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "pm.test('Users synced successfully', function () {",
+                                    "    const response = pm.response.json();",
+                                    "    pm.expect(response).to.be.true;",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Client-Id",
+                                "value": "{{clientId}}",
+                                "description": "Your OAuth client ID"
+                            },
+                            {
+                                "key": "X-Client-Secret",
+                                "value": "{{clientSecret}}",
+                                "description": "Your OAuth client secret (plain-text)"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"users\": [\n    {\n      \"applicationCode\": \"ERP\",\n      \"applicationUserCode\": \"ERP001\",\n      \"fullName\": \"John Doe\",\n      \"userName\": \"johndoe\",\n      \"displayName\": \"John\",\n      \"email\": \"john.doe@company.com\"\n    },\n    {\n      \"applicationCode\": \"ERP\",\n      \"applicationUserCode\": \"ERP002\",\n      \"fullName\": \"Jane Smith\",\n      \"userName\": \"janesmith\",\n      \"displayName\": \"Jane\",\n      \"email\": \"jane.smith@company.com\"\n    },\n    {\n      \"applicationCode\": \"ERP\",\n      \"applicationUserCode\": \"ERP003\",\n      \"fullName\": \"Bob Wilson\",\n      \"userName\": \"bobwilson\",\n      \"displayName\": \"Bob\",\n      \"email\": \"bob.wilson@company.com\"\n    }\n  ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/externalsystem/sync-from-external",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "externalsystem",
+                                "sync-from-external"
+                            ]
+                        },
+                        "description": "Synchronizes users from your external system into ChatApp.\n\n### Authentication\n**Required Scope**: `chatapp.users.create`\n\n### Request Headers\n- `X-Client-Id`: Your client ID\n- `X-Client-Secret`: Your plain-text secret\n\n### Request Body\n- `users`: Array of user objects\n\n### User Object Fields\n- `applicationCode`: Your system identifier (e.g., \"ERP\", \"CRM\")\n- `applicationUserCode`: User ID in your system\n- `fullName`: User's full legal name\n- `userName`: Unique username (used for matching existing users)\n- `displayName`: Display name in the app\n- `email`: User's email address\n\n### Response\n- `true`: Users synced successfully\n- `false`: Sync failed\n\n### Notes\n- Existing users (matched by `userName`) will be updated\n- Batch operations are supported\n- Invalid data may cause the entire batch to fail"
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "X-Client-Id",
+                                        "value": "{{clientId}}"
+                                    },
+                                    {
+                                        "key": "X-Client-Secret",
+                                        "value": "{{clientSecret}}"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"users\": [\n    {\n      \"applicationCode\": \"ERP\",\n      \"applicationUserCode\": \"ERP001\",\n      \"fullName\": \"John Doe\",\n      \"userName\": \"johndoe\",\n      \"displayName\": \"John\",\n      \"email\": \"john.doe@company.com\"\n    }\n  ]\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/externalsystem/sync-from-external",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "externalsystem",
+                                        "sync-from-external"
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "true"
+                        },
+                        {
+                            "name": "Unauthorized - Missing Header",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"users\": []\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/externalsystem/sync-from-external",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "externalsystem",
+                                        "sync-from-external"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n  \"error\": \"Unauthorized\",\n  \"message\": \"Missing X-Client-Id header\"\n}"
+                        },
+                        {
+                            "name": "Forbidden - Insufficient Scope",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "X-Client-Id",
+                                        "value": "{{clientId}}"
+                                    },
+                                    {
+                                        "key": "X-Client-Secret",
+                                        "value": "{{clientSecret}}"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"users\": []\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/externalsystem/sync-from-external",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "externalsystem",
+                                        "sync-from-external"
+                                    ]
+                                }
+                            },
+                            "status": "Forbidden",
+                            "code": 403,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n  \"error\": \"Forbidden\",\n  \"message\": \"Client lacks required scope\"\n}"
+                        }
+                    ]
+                }
+            ],
+            "description": "Endpoints for managing users from external systems."
+        },
+        {
+            "name": "Conversation Management",
+            "item": [
+                {
+                    "name": "Create Conversation Group",
+                    "event": [
+                        {
+                            "listen": "prerequest",
+                            "script": {
+                                "exec": [
+                                    "// Check if credentials are set",
+                                    "const clientId = pm.collectionVariables.get('clientId');",
+                                    "const clientSecret = pm.collectionVariables.get('clientSecret');",
+                                    "",
+                                    "if (!clientId || !clientSecret) {",
+                                    "    console.log('⚠️ WARNING: Client credentials not set!');",
+                                    "    console.log('Please run \"Create OAuth Client\" first and save the credentials.');",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Status code is 200 or 400', function () {",
+                                    "    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                                    "});",
+                                    "",
+                                    "if (pm.response.code === 200) {",
+                                    "    pm.test('Conversation created successfully', function () {",
+                                    "        const response = pm.response.json();",
+                                    "        pm.expect(response).to.be.true;",
+                                    "    });",
+                                    "} else if (pm.response.code === 400) {",
+                                    "    pm.test('Users not found error', function () {",
+                                    "        const response = pm.response.text();",
+                                    "        pm.expect(response).to.include('usernames do not exist');",
+                                    "    });",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Client-Id",
+                                "value": "{{clientId}}",
+                                "description": "Your OAuth client ID"
+                            },
+                            {
+                                "key": "X-Client-Secret",
+                                "value": "{{clientSecret}}",
+                                "description": "Your OAuth client secret (plain-text)"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Project Alpha Discussion\",\n  \"userNames\": [\n    \"johndoe\",\n    \"janesmith\",\n    \"bobwilson\"\n  ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/externalsystem/create-conversation-group",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "externalsystem",
+                                "create-conversation-group"
+                            ]
+                        },
+                        "description": "Creates a group conversation with specified users.\n\n### Authentication\n**Required Scope**: `chatapp.external_conversation.create`\n\n### Request Headers\n- `X-Client-Id`: Your client ID\n- `X-Client-Secret`: Your plain-text secret\n\n### Request Body\n- `name`: Name of the conversation group\n- `userNames`: Array of usernames to add to the group\n\n### Response\n- `true`: Conversation created successfully\n- `\"One or more usernames do not exist.\"`: Some users not found (400 error)\n\n### Notes\n- All usernames must exist in the system (sync users first)\n- The conversation is automatically associated with your client\n- Duplicate usernames are handled automatically"
+                    },
+                    "response": [
+                        {
+                            "name": "Success",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "X-Client-Id",
+                                        "value": "{{clientId}}"
+                                    },
+                                    {
+                                        "key": "X-Client-Secret",
+                                        "value": "{{clientSecret}}"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"name\": \"Project Alpha Discussion\",\n  \"userNames\": [\n    \"johndoe\",\n    \"janesmith\",\n    \"bobwilson\"\n  ]\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/externalsystem/create-conversation-group",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "externalsystem",
+                                        "create-conversation-group"
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "true"
+                        },
+                        {
+                            "name": "Bad Request - Users Not Found",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "X-Client-Id",
+                                        "value": "{{clientId}}"
+                                    },
+                                    {
+                                        "key": "X-Client-Secret",
+                                        "value": "{{clientSecret}}"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"name\": \"Test Group\",\n  \"userNames\": [\n    \"nonexistentuser\"\n  ]\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/externalsystem/create-conversation-group",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "externalsystem",
+                                        "create-conversation-group"
+                                    ]
+                                }
+                            },
+                            "status": "Bad Request",
+                            "code": 400,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "\"One or more usernames do not exist.\""
+                        },
+                        {
+                            "name": "Unauthorized - Invalid Credentials",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "X-Client-Id",
+                                        "value": "invalid-client-id"
+                                    },
+                                    {
+                                        "key": "X-Client-Secret",
+                                        "value": "invalid-secret"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"name\": \"Test Group\",\n  \"userNames\": []\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/externalsystem/create-conversation-group",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "externalsystem",
+                                        "create-conversation-group"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n  \"error\": \"Unauthorized\",\n  \"message\": \"Invalid client_id\"\n}"
+                        }
+                    ]
+                }
+            ],
+            "description": "Endpoints for managing conversations from external systems."
+        },
+        {
+            "name": "Complete Workflow Example",
+            "item": [
+                {
+                    "name": "1. Create Client (Run First)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "const response = pm.response.json();",
+                                    "if (response.clientId && response.clientSecret) {",
+                                    "    pm.collectionVariables.set('clientId', response.clientId);",
+                                    "    pm.collectionVariables.set('clientSecret', response.clientSecret);",
+                                    "    console.log('✅ Step 1 Complete: Client created and credentials saved');",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Workflow Example Client\",\n  \"scopes\": [\n    \"chatapp.users.create\",\n    \"chatapp.external_conversation.create\"\n  ],\n  \"expiresAt\": \"2026-12-31T23:59:59Z\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/create-client",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "create-client"
+                            ]
+                        },
+                        "description": "**Step 1**: Create OAuth client credentials.\n\nThis will automatically save `clientId` and `clientSecret` to collection variables for use in subsequent requests."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Sync Users (Run Second)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Users synced', function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "    console.log('✅ Step 2 Complete: Users synchronized');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Client-Id",
+                                "value": "{{clientId}}"
+                            },
+                            {
+                                "key": "X-Client-Secret",
+                                "value": "{{clientSecret}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"users\": [\n    {\n      \"applicationCode\": \"DEMO\",\n      \"applicationUserCode\": \"DEMO001\",\n      \"fullName\": \"Alice Johnson\",\n      \"userName\": \"alicejohnson\",\n      \"displayName\": \"Alice\",\n      \"email\": \"alice.johnson@demo.com\"\n    },\n    {\n      \"applicationCode\": \"DEMO\",\n      \"applicationUserCode\": \"DEMO002\",\n      \"fullName\": \"Bob Smith\",\n      \"userName\": \"bobsmith\",\n      \"displayName\": \"Bob\",\n      \"email\": \"bob.smith@demo.com\"\n    }\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/externalsystem/sync-from-external",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "externalsystem",
+                                "sync-from-external"
+                            ]
+                        },
+                        "description": "**Step 2**: Synchronize users into ChatApp.\n\nUses credentials from Step 1 (stored in collection variables)."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Create Conversation (Run Third)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Conversation created', function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "    console.log('✅ Step 3 Complete: Conversation group created');",
+                                    "    console.log('');",
+                                    "    console.log('🎉 Workflow Complete!');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Client-Id",
+                                "value": "{{clientId}}"
+                            },
+                            {
+                                "key": "X-Client-Secret",
+                                "value": "{{clientSecret}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Demo Project Team\",\n  \"userNames\": [\n    \"alicejohnson\",\n    \"bobsmith\"\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/externalsystem/create-conversation-group",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "externalsystem",
+                                "create-conversation-group"
+                            ]
+                        },
+                        "description": "**Step 3**: Create a conversation group with the synchronized users.\n\nUses credentials from Step 1 and users from Step 2."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "A complete end-to-end workflow demonstrating:\n1. Creating OAuth credentials\n2. Synchronizing users\n3. Creating a conversation group\n\nRun these requests in order to see the complete integration flow."
+        }
+    ],
+    "event": [
+        {
+            "listen": "prerequest",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        },
+        {
+            "listen": "test",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "https://localhost:7123",
+            "type": "string",
+            "description": "Base URL for the ChatApp API"
+        },
+        {
+            "key": "clientId",
+            "value": "",
+            "type": "string",
+            "description": "OAuth Client ID (auto-populated after creating client)"
+        },
+        {
+            "key": "clientSecret",
+            "value": "",
+            "type": "string",
+            "description": "OAuth Client Secret - plain-text (auto-populated after creating client)"
+        }
+    ]
+}

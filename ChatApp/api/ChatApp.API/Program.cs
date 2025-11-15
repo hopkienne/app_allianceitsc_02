@@ -3,21 +3,27 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChatApp.Application;
 using ChatApp.Application.Middlewares;
+using ChatApp.Contracts;
+using ChatApp.Contracts.Settings;
 using ChatApp.Domain.Enum;
 using ChatApp.Infrastructure;
 using ChatApp.Infrastructure.Hubs;
+using ChatApp.Infrastructure.Services.Authorization;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Npgsql;
 using WebApplication.Application;
-using WebApplication.Application.Middlewares;
 using WebApplication.Common.Settings;
 
 var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder(args);
+builder.Services.Configure<HashingSettings>(
+    builder.Configuration.GetSection("HashingSettings")
+);
 builder.Services.Configure<RouteOptions>(options => { options.LowercaseUrls = true; });
 
 builder.Services.AddCors(p => p.AddDefaultPolicy(b =>
@@ -41,15 +47,18 @@ builder.Services.AddControllers(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddInfrastructureServices();
 builder.Services.AddApplicationServices();
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var dsb = new NpgsqlDataSourceBuilder(connectionString);
 dsb.MapEnum<ConversationType>("chat.ConversationType"); // tên schema.enum
 var dataSource = dsb.Build();
+
 builder.Services.AddDbContext<ChatDbContext>(option =>
 {
     option.UseNpgsql(dataSource);
     option.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
 });
+
 //add logging
 builder.Services.AddLogging(loggingBuilder =>
 {
@@ -63,6 +72,9 @@ builder.Services.AddMediatR(cfg =>
 //add fluent validation
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssembly(typeof(ApplicationAssembly).Assembly);
+
+builder.Services.AddScoped<IAuthorizationHandler, HasScopeHandler>();
+
 
 //add swagger for api documentation
 if (builder.Environment.IsDevelopment())
@@ -103,7 +115,8 @@ builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+})
+.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
 {
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
@@ -130,8 +143,45 @@ builder.Services.AddAuthentication(options =>
             return Task.CompletedTask;
         }
     };
+})
+.AddScheme<ClientCredentialsAuthenticationOptions, ClientCredentialsAuthenticationHandler>(
+    ClientCredentialsAuthenticationOptions.DefaultScheme,
+    options =>
+    {
+        options.ClientIdHeader = "X-Client-Id";
+        options.ClientSecretHeader = "X-Client-Secret";
+    });
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy((Scopes.ExternalConversation.Read), policy =>
+        policy.RequireAuthenticatedUser()
+            .AddRequirements(new HasScopeRequirement(Scopes.ExternalConversation.Read)));
+
+    options.AddPolicy((Scopes.ExternalConversation.Write), policy =>
+        policy.RequireAuthenticatedUser()
+            .AddRequirements(new HasScopeRequirement(Scopes.ExternalConversation.Write)));
+
+    options.AddPolicy((Scopes.ExternalConversation.Update), policy =>
+        policy.RequireAuthenticatedUser()
+            .AddRequirements(new HasScopeRequirement(Scopes.ExternalConversation.Update)));
+
+    options.AddPolicy((Scopes.ExternalConversation.Delete), policy =>
+        policy.RequireAuthenticatedUser()
+            .AddRequirements(new HasScopeRequirement(Scopes.ExternalConversation.Delete)));
+
+    options.AddPolicy((Scopes.Users.Read), policy =>
+        policy.RequireAuthenticatedUser()
+            .AddRequirements(new HasScopeRequirement(Scopes.Users.Read)));
+    options.AddPolicy((Scopes.Users.Write), policy =>
+        policy.RequireAuthenticatedUser()
+            .AddRequirements(new HasScopeRequirement(Scopes.Users.Write)));
+    options.AddPolicy((Scopes.Users.Update), policy =>
+        policy.RequireAuthenticatedUser()
+            .AddRequirements(new HasScopeRequirement(Scopes.Users.Update)));
+    options.AddPolicy((Scopes.Users.Delete), policy =>
+        policy.RequireAuthenticatedUser()
+            .AddRequirements(new HasScopeRequirement(Scopes.Users.Delete)));
 });
-builder.Services.AddAuthorization();
 
 var app = builder.Build();
 

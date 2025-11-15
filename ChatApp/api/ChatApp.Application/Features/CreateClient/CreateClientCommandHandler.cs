@@ -1,16 +1,20 @@
 using ChatApp.Application.Abstractions;
+using ChatApp.Contracts.Settings;
 using ChatApp.Contracts.Utils;
 using ChatApp.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ChatApp.Application.Features.CreateClient;
 
 public class CreateClientCommandHandler(
     ILogger<CreateClientCommandHandler> logger,
-    IOAuthClientsRepository clientsRepository)
+    IOAuthClientsRepository clientsRepository, IOptions<HashingSettings> hashingSettings)
     : IRequestHandler<CreateClientCommand, CreateClientResponse>
 {
+    private readonly HashingSettings _hashingSettings = hashingSettings.Value;
+    
     public async Task<CreateClientResponse> Handle(CreateClientCommand request, CancellationToken cancellationToken)
     {
         var existClient = await clientsRepository.GetClientByNameAsync(request.Name, cancellationToken);
@@ -28,11 +32,15 @@ public class CreateClientCommandHandler(
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
         };
-        var clientSecret = new OAuthClientSecrets()
+        
+        // Generate a random plain-text secret (this will be returned to the user)
+        var plainTextSecret = Guid.NewGuid().ToString("N"); // 32-character hex string
+        
+        var clientSecret = new OAuthClientSecrets
         {
             Id = Guid.CreateVersion7(),
             ClientId = client.Id,
-            SecretHash = Hashing.Argon2IdHasherSecretKey(request.Secret),
+            SecretHash = Hashing.Argon2IdHasherSecretKey(plainTextSecret), // Hash the plain-text secret
             CreatedAt = DateTimeOffset.UtcNow,
             NotBefore = DateTimeOffset.UtcNow,
             ExpiresAt = request.ExpiresAt,
@@ -47,12 +55,14 @@ public class CreateClientCommandHandler(
             logger.LogError("Failed to create client {ClientName}", request.Name);
             throw new Exception("Failed to create client.");
         }
-        logger.LogInformation("Client {ClientName} created successfully", request.Name);
+        logger.LogInformation("Client {ClientName} created successfully with ClientId {ClientId}", 
+            request.Name, client.ClientId);
         
         return new CreateClientResponse
         {
-            ClientId = client.Id,
-            ClientSecret = clientSecret.SecretHash
+            Id = client.Id,  // Database primary key
+            ClientId = client.ClientId,  // The client_id string for X-Client-Id header
+            ClientSecret = plainTextSecret // Return the plain-text secret (NOT the hash)
         };
     }
 }

@@ -13,4 +13,5 @@ public interface IUsersRepository
     Task<Users?> GetUserByUsernameAsync(string username, CancellationToken cancellationToken);
     Task<string> GetDisplayNameByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<List<string>> CheckUsersExistsByIdAsync(IEnumerable<Guid> userIds, CancellationToken cancellationToken);
+    Task<bool> AddRangeUserAsync(IEnumerable<Users> users, CancellationToken cancellationToken);
 }
